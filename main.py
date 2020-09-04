@@ -176,7 +176,8 @@ class Game():
                 self.all_sprites.update()
                 last_move = move
 
-            self.all_sprites.draw(self.screen)
+            for sprite in self.all_sprites.sprites():
+                sprite.draw(self.screen)
 
             self.update_fps()
             pygame.display.flip()
@@ -200,6 +201,9 @@ class Tile(pygame.sprite.Sprite):
         self.rect.x += move[0]
         self.rect.y += move[1]
 
+    def draw(self, screen):
+        screen.blit(self.image, self.rect)
+
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
@@ -211,6 +215,9 @@ class Player(pygame.sprite.Sprite):
     def update(self):
         self.rect.x = int(SCREENSIZE[0]/2-17.5)
         self.rect.y = int(SCREENSIZE[1]/2-17.5)
+
+    def draw(self, screen):
+        screen.blit(self.image, self.rect)
 
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, pos):
@@ -225,6 +232,9 @@ class Enemy(pygame.sprite.Sprite):
         global move
         self.rect.x += move[0]
         self.rect.y += move[1]
+
+    def draw(self, screen):
+        screen.blit(self.image, self.rect)
 
 if __name__ == "__main__":
     game = Game()
