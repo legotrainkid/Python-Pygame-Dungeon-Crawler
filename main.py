@@ -167,8 +167,7 @@ class Game():
                     move[1] = -self.MOVE_SPEED*2
                 elif last_move[1] < 0:
                     move[1] = self.MOVE_SPEED*2
-                if hit_walls:
-                    self.all_sprites.update()
+                self.all_sprites.update()
             if hit_walls:
                 last_move = move
                 move = [0, 0]
@@ -176,7 +175,8 @@ class Game():
                 self.all_sprites.update()
                 last_move = move
 
-            self.all_sprites.draw(self.screen)
+            for sprite in self.all_sprites.sprites():
+                sprite.draw(self.screen)
 
             self.update_fps()
             pygame.display.flip()
@@ -200,6 +200,11 @@ class Tile(pygame.sprite.Sprite):
         self.rect.x += move[0]
         self.rect.y += move[1]
 
+    def draw(self, screen):
+        if -55 < self.rect.x < SCREENSIZE[0]:
+            if -55 < self.rect.y < SCREENSIZE[1]:
+                screen.blit(self.image, self.rect)
+
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
@@ -208,9 +213,14 @@ class Player(pygame.sprite.Sprite):
 
         self.rect = self.image.get_rect()
 
-    def update(self):
         self.rect.x = int(SCREENSIZE[0]/2-17.5)
         self.rect.y = int(SCREENSIZE[1]/2-17.5)
+
+    def update(self):
+        pass
+
+    def draw(self, screen):
+        screen.blit(self.image, self.rect)
 
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, pos):
@@ -225,6 +235,11 @@ class Enemy(pygame.sprite.Sprite):
         global move
         self.rect.x += move[0]
         self.rect.y += move[1]
+
+    def draw(self, screen):
+        if -75 < self.rect.x < SCREENSIZE[0]+75:
+            if -75 < self.rect.y < SCREENSIZE[1]+75:
+                screen.blit(self.image, self.rect)
 
 if __name__ == "__main__":
     game = Game()
