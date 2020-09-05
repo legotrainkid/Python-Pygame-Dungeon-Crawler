@@ -2,6 +2,7 @@ import pygame
 import math
 import random
 import generation
+import pathfinding
 
 pygame.init()
 
@@ -19,7 +20,7 @@ class Game():
         self.FPS_FONT = pygame.font.Font("freesansbold.ttf", 11)
         self.SCORE_FONT = pygame.font.Font("freesansbold.ttf", 18)
         self.MOVE_SPEED = 3
-        self.MAPSIZE = 80
+        self.MAPSIZE = 20
         self.FPS = 60
 
         self.score = 0
@@ -58,12 +59,12 @@ class Game():
         for y in range(len(self.world_map)):
             for x in self.world_map[y]:
                 if x == 0:
-                    new = Tile(self.TILES["empty"], x_v, y_v, False, [i, y])
+                    new = Tile(self.TILES["empty"], x_v, y_v, True, [i, y])
                 elif x == 1:
-                    new = Tile(self.TILES["wall"], x_v, y_v, False, [i, y])
+                    new = Tile(self.TILES["wall"], x_v, y_v, True, [i, y])
                     self.walls.add(new)
                 elif x == 2:
-                    new = Tile(self.TILES["floor"], x_v, y_v, True, [i, y])
+                    new = Tile(self.TILES["floor"], x_v, y_v, False, [i, y])
                 x_v += 50
                 self.tiles_list.add(new)
                 self.all_sprites.add(new)
@@ -102,14 +103,14 @@ class Game():
             hit_list = pygame.sprite.spritecollide(self.player, self.tiles_list, False)
             invalid_spawn = False
             for tile in hit_list:
-                if not tile.walkable:
+                if tile.is_barrier:
                     invalid_spawn = True
             move = [0, 0]
 
     def spawn_enemies(self, num):
         for i in range(num):
             pos = self.spawn_ent()
-            enemy = Enemy(pos)
+            enemy = Enemy(pos, i)
             self.all_sprites.add(enemy)
             self.enemies.add(enemy)
 
@@ -133,6 +134,20 @@ class Game():
         global move
         can_move = [True, True, True, True]
         last_move = [0, 0]
+        enemies = self.enemies.sprites()
+        tile_map = {}
+        for y in range(len(self.world_map)):
+            for x in range(len(self.world_map[y])):
+                if self.world_map[y][x] == 2:
+                    tile_map[(x, y)] = "."
+                else:
+                    tile_map[(x, y)] = "#"
+        for enemy in enemies:
+            tiles_hit = pygame.sprite.spritecollide(enemy, self.tiles_list, False)
+            if tiles_hit:
+                enemy.pos = tiles_hit[0].pos
+            else:
+                enemy.pos = [0, 0]
         while self.game_running:
             
             for event in pygame.event.get():
@@ -184,7 +199,6 @@ class Game():
                 self.player.pos = [0, 0]
 
             
-            enemies = self.enemies.sprites()
             for enemy in enemies:
                 if enemy.moved:
                     tiles_hit = pygame.sprite.spritecollide(enemy, self.tiles_list, False)
@@ -192,6 +206,11 @@ class Game():
                         enemy.pos = tiles_hit[0].pos
                     else:
                         enemy.pos = [0, 0]
+
+            for enemy in enemies:
+                if enemy.update_path:
+                    enemy.path = pathfinding.astar_search(tile_map, enemy.pos, self.player.pos)
+                    continue
 
             for sprite in self.all_sprites.sprites():
                 sprite.draw(self.screen)
@@ -201,7 +220,7 @@ class Game():
             self.clock.tick(self.FPS)
 
 class Tile(pygame.sprite.Sprite):
-    def __init__(self, image, x, y, walkable, pos):
+    def __init__(self, image, x, y, barrier, pos):
         # Call the parent class (Sprite) constructor
         super().__init__()
  
@@ -211,7 +230,7 @@ class Tile(pygame.sprite.Sprite):
         self.rect.x = x
         self.rect.y = y
 
-        self.walkable = walkable
+        self.is_barrier = barrier
         self.pos = pos
 
     def update(self):
@@ -243,17 +262,23 @@ class Player(pygame.sprite.Sprite):
         screen.blit(self.image, self.rect)
 
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self, pos):
+    def __init__(self, pos, frame):
         super().__init__()
         self.image = pygame.image.load("graphics/characters/enemy.png").convert()
         self.rect = self.image.get_rect()
 
-        self.rect.x = pos[0]
-        self.rect.y = pos[1]
+        self.rect.x = pos[0]+5
+        self.rect.y = pos[1]+5
 
-        self.pos = []
+        self.pos = [0, 0]
+
+        self.path = []
 
         self.moved = False
+
+        self.update_path = False
+        self.player_moved = False
+        self.frames_since = frame
 
     def update(self):
         global move
@@ -266,16 +291,31 @@ class Enemy(pygame.sprite.Sprite):
             y_move = 0
         self.rect.x += move[0]+x_move
         self.rect.y += move[1]+y_move
+        
         if x_move != 0 and y_move != 0:
             self.moved = True
         else:
             self.moved = False
+
+        
+        if move[0] != 0 or move[1] != 0:
+            self.player_moved = True
+        
+        if self.frames_since > 30 and self.player_moved and self.see_player():
+            self.update_path = True
+            self.frames_since = 0
+            self.player_moved = False
+        else:
+            self.update_path = False
+            self.frames_since += 1
 
     def draw(self, screen):
         if -75 < self.rect.x < SCREENSIZE[0]+75:
             if -75 < self.rect.y < SCREENSIZE[1]+75:
                 screen.blit(self.image, self.rect)
 
+    def see_player(self):
+        return False
 if __name__ == "__main__":
     game = Game()
     game.main()
