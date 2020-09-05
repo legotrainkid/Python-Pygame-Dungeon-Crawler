@@ -20,7 +20,7 @@ class Game():
         self.FPS_FONT = pygame.font.Font("freesansbold.ttf", 11)
         self.SCORE_FONT = pygame.font.Font("freesansbold.ttf", 18)
         self.MOVE_SPEED = 3
-        self.MAPSIZE = 20
+        self.MAPSIZE = 80
         self.FPS = 60
 
         self.score = 0
@@ -135,13 +135,15 @@ class Game():
         can_move = [True, True, True, True]
         last_move = [0, 0]
         enemies = self.enemies.sprites()
-        tile_map = {}
+        tile_map = []
         for y in range(len(self.world_map)):
+            row = []
             for x in range(len(self.world_map[y])):
                 if self.world_map[y][x] == 2:
-                    tile_map[(x, y)] = "."
+                    row.append(0)
                 else:
-                    tile_map[(x, y)] = "#"
+                    row.append(1)
+            tile_map.append(row)
         for enemy in enemies:
             tiles_hit = pygame.sprite.spritecollide(enemy, self.tiles_list, False)
             if tiles_hit:
@@ -198,7 +200,6 @@ class Game():
             else:
                 self.player.pos = [0, 0]
 
-            
             for enemy in enemies:
                 if enemy.moved:
                     tiles_hit = pygame.sprite.spritecollide(enemy, self.tiles_list, False)
@@ -208,8 +209,23 @@ class Game():
                         enemy.pos = [0, 0]
 
             for enemy in enemies:
+                in_screen = False
+                if 0 < enemy.rect.x < SCREENSIZE[0]:
+                    if 0 < enemy.rect.y < SCREENSIZE[1]:
+                        in_screen = True
+
+                if enemy.frames_since >= 30 and not enemy.see_player and in_screen:
+                    line = Line(enemy, self.player, self.screen)
+                    line_list = pygame.sprite.spritecollide(line, self.walls, False)
+                    if line_list:
+                        enemy.see_player = False
+                    else:
+                        enemy.see_player = True
+                    del line
+                    continue
+                    
                 if enemy.update_path:
-                    enemy.path = pathfinding.astar_search(tile_map, enemy.pos, self.player.pos)
+                    enemy.path = pathfinding.search(tile_map, 1, enemy.pos[::-1], self.player.pos[::-1])
                     continue
 
             for sprite in self.all_sprites.sprites():
@@ -280,6 +296,10 @@ class Enemy(pygame.sprite.Sprite):
         self.player_moved = False
         self.frames_since = frame
 
+        self.see_player = False
+
+        self.name = str(frame)
+
     def update(self):
         global move
         to_move = random.choice([True, False])
@@ -301,21 +321,27 @@ class Enemy(pygame.sprite.Sprite):
         if move[0] != 0 or move[1] != 0:
             self.player_moved = True
         
-        if self.frames_since > 30 and self.player_moved and self.see_player():
+        if self.frames_since > 30 and self.player_moved and self.see_player:
             self.update_path = True
             self.frames_since = 0
             self.player_moved = False
+        elif self.frames_since > 30:
+            self.frames_since = 0
         else:
             self.update_path = False
             self.frames_since += 1
+        if self.see_player:
+            self.see_player = False
 
     def draw(self, screen):
         if -75 < self.rect.x < SCREENSIZE[0]+75:
             if -75 < self.rect.y < SCREENSIZE[1]+75:
                 screen.blit(self.image, self.rect)
 
-    def see_player(self):
-        return False
+class Line(pygame.sprite.Sprite):
+    def __init__(self, enemy, player, screen):
+        self.rect = pygame.draw.line(screen, (0, 0, 0), player.rect[0:2], enemy.rect[0:2])
+        
 if __name__ == "__main__":
     game = Game()
     game.main()

@@ -1,141 +1,197 @@
-# This class represents a node
+import numpy as np
+
 class Node:
-    # Initialize the class
-    def __init__(self, position:(), parent:()):
-        self.position = position
+    """
+        A node class for A* Pathfinding
+        parent is parent of the current Node
+        position is current position of the Node in the maze
+        g is cost from start to current Node
+        h is heuristic based estimated cost for current Node to end Node
+        f is total cost of present node i.e. :  f = g + h
+    """
+
+    def __init__(self, parent=None, position=None):
         self.parent = parent
-        self.g = 0 # Distance to start node
-        self.h = 0 # Distance to goal node
-        self.f = 0 # Total cost
-    # Compare nodes
+        self.position = position
+
+        self.g = 0
+        self.h = 0
+        self.f = 0
     def __eq__(self, other):
         return self.position == other.position
-    # Sort nodes
-    def __lt__(self, other):
-         return self.f < other.f
-    # Print node
-    def __repr__(self):
-        return ('({0},{1})'.format(self.position, self.f))
-# Draw a grid
-def draw_grid(map, width, height, spacing=2, **kwargs):
-    for y in range(height):
-        for x in range(width):
-            print('%%-%ds' % spacing % draw_tile(map, (x, y), kwargs), end='')
-        print()
-# Draw a tile
-def draw_tile(map, position, kwargs):
+
+#This function return the path of the search
+def return_path(current_node,maze):
+    path = []
+    no_rows, no_columns = np.shape(maze)
+    # here we create the initialized result maze with -1 in every position
+    result = [[-1 for i in range(no_columns)] for j in range(no_rows)]
+    current = current_node
+    while current is not None:
+        path.append(current.position)
+        current = current.parent
+    # Return reversed path as we need to show from start to end path
+    path = path[::-1]
+    return path
+    """
+    start_value = 0
+    # we update the path of start to end found by A-star serch with every step incremented by 1
+    for i in range(len(path)):
+        result[path[i][0]][path[i][1]] = start_value
+        start_value += 1
+    return result
+    """
+
+
+def search(maze, cost, start, end):
+    """
+        Returns a list of tuples as a path from the given start to the given end in the given maze
+        :param maze:
+        :param cost
+        :param start:
+        :param end:
+        :return:
+    """
+
+    # Create start and end node with initized values for g, h and f
+    start_node = Node(None, tuple(start))
+    start_node.g = start_node.h = start_node.f = 0
+    end_node = Node(None, tuple(end))
+    end_node.g = end_node.h = end_node.f = 0
+
+    # Initialize both yet_to_visit and visited list
+    # in this list we will put all node that are yet_to_visit for exploration. 
+    # From here we will find the lowest cost node to expand next
+    yet_to_visit_list = []  
+    # in this list we will put all node those already explored so that we don't explore it again
+    visited_list = [] 
     
-    # Get the map value
-    value = map.get(position)
-    # Check if we should print the path
-    if 'path' in kwargs and position in kwargs['path']: value = '+'
-    # Check if we should print start point
-    if 'start' in kwargs and position == kwargs['start']: value = '@'
-    # Check if we should print the goal point
-    if 'goal' in kwargs and position == kwargs['goal']: value = '$'
-    # Return a tile value
-    return value 
-# A* search
-def astar_search(map, start, end):
-    
-    # Create lists for open nodes and closed nodes
-    open = []
-    closed = []
-    # Create a start node and an goal node
-    start_node = Node(start, None)
-    goal_node = Node(end, None)
     # Add the start node
-    open.append(start_node)
+    yet_to_visit_list.append(start_node)
     
-    # Loop until the open list is empty
-    while len(open) > 0:
-        # Sort the open list to get the node with the lowest cost first
-        open.sort()
-        # Get the node with the lowest cost
-        current_node = open.pop(0)
-        # Add the current node to the closed list
-        closed.append(current_node)
-        
-        # Check if we have reached the goal, return the path
-        if current_node == goal_node:
-            path = []
-            while current_node != start_node:
-                path.append(current_node.position)
-                current_node = current_node.parent
-            #path.append(start) 
-            # Return reversed path
-            return path[::-1]
-        # Unzip the current node position
-        (x, y) = current_node.position
-        # Get neighbors
-        neighbors = [(x-1, y), (x+1, y), (x, y-1), (x, y+1)]
-        # Loop neighbors
-        for next in neighbors:
-            # Get value from map
-            map_value = map.get(next)
-            # Check if the node is a wall
-            if(map_value == '#'):
-                continue
-            # Create a neighbor node
-            neighbor = Node(next, current_node)
-            # Check if the neighbor is in the closed list
-            if(neighbor in closed):
-                continue
-            # Generate heuristics (Manhattan distance)
-            neighbor.g = abs(neighbor.position[0] - start_node.position[0]) + abs(neighbor.position[1] - start_node.position[1])
-            neighbor.h = abs(neighbor.position[0] - goal_node.position[0]) + abs(neighbor.position[1] - goal_node.position[1])
-            neighbor.f = neighbor.g + neighbor.h
-            # Check if neighbor is in open list and if it has a lower f value
-            if(add_to_open(open, neighbor) == True):
-                # Everything is green, add neighbor to open list
-                open.append(neighbor)
-    # Return None, no path is found
-    return None
-# Check if a neighbor should be added to open list
-def add_to_open(open, neighbor):
-    for node in open:
-        if (neighbor == node and neighbor.f >= node.f):
-            return False
-    return True
-# The main entry point for this module
-def main():
-    # Get a map (grid)
-    map = {}
-    chars = ['c']
-    start = None
-    end = None
-    width = 0
-    height = 0
-    # Open a file
-    fp = open('maze.in', 'r')
+    # Adding a stop condition. This is to avoid any infinite loop and stop 
+    # execution after some reasonable number of steps
+    outer_iterations = 0
+    max_iterations = (len(maze) // 2) ** 10
+
+    # what squares do we search . serarch movement is left-right-top-bottom 
+    #(4 movements) from every positon
+
+    move  =  [[-1, 0 ], # go up
+              [ 0, -1], # go left
+              [ 1, 0 ], # go down
+              [ 0, 1 ]] # go right
+
+
+    """
+        1) We first get the current node by comparing all f cost and selecting the lowest cost node for further expansion
+        2) Check max iteration reached or not . Set a message and stop execution
+        3) Remove the selected node from yet_to_visit list and add this node to visited list
+        4) Perofmr Goal test and return the path else perform below steps
+        5) For selected node find out all children (use move to find children)
+            a) get the current postion for the selected node (this becomes parent node for the children)
+            b) check if a valid position exist (boundary will make few nodes invalid)
+            c) if any node is a wall then ignore that
+            d) add to valid children node list for the selected parent
+            
+            For all the children node
+                a) if child in visited list then ignore it and try next node
+                b) calculate child node g, h and f values
+                c) if child in yet_to_visit list then ignore it
+                d) else move the child to yet_to_visit list
+    """
+    #find maze has got how many rows and columns 
+    no_rows, no_columns = np.shape(maze)
     
-    # Loop until there is no more lines
-    while len(chars) > 0:
-        # Get chars in a line
-        chars = [str(i) for i in fp.readline().strip()]
-        # Calculate the width
-        width = len(chars) if width == 0 else width
-        # Add chars to map
-        for x in range(len(chars)):
-            map[(x, height)] = chars[x]
-            if(chars[x] == '@'):
-                start = (x, height)
-            elif(chars[x] == '$'):
-                end = (x, height)
+    # Loop until you find the end
+    
+    while len(yet_to_visit_list) > 0:
         
-        # Increase the height of the map
-        if(len(chars) > 0):
-            height += 1
-    # Close the file pointer
-    fp.close()
-    # Find the closest path from start(@) to end($)
-    path = astar_search(map, start, end)
-    print()
+        # Every time any node is referred from yet_to_visit list, counter of limit operation incremented
+        outer_iterations += 1    
+
+        
+        # Get the current node
+        current_node = yet_to_visit_list[0]
+        current_index = 0
+        for index, item in enumerate(yet_to_visit_list):
+            if item.f < current_node.f:
+                current_node = item
+                current_index = index
+                
+        # if we hit this point return the path such as it may be no solution or 
+        # computation cost is too high
+        if outer_iterations > max_iterations:
+            print ("giving up on pathfinding too many iterations")
+            return return_path(current_node,maze)
+
+        # Pop current node out off yet_to_visit list, add to visited list
+        yet_to_visit_list.pop(current_index)
+        visited_list.append(current_node)
+
+        # test if goal is reached or not, if yes then return the path
+        if current_node == end_node:
+            return return_path(current_node,maze)
+
+        # Generate children from all adjacent squares
+        children = []
+
+        for new_position in move: 
+
+            # Get node position
+            node_position = (current_node.position[0] + new_position[0], current_node.position[1] + new_position[1])
+
+            # Make sure within range (check if within maze boundary)
+            if (node_position[0] > (no_rows - 1) or 
+                node_position[0] < 0 or 
+                node_position[1] > (no_columns -1) or 
+                node_position[1] < 0):
+                continue
+
+            # Make sure walkable terrain
+            if maze[node_position[0]][node_position[1]] != 0:
+                continue
+
+            # Create new node
+            new_node = Node(current_node, node_position)
+
+            # Append
+            children.append(new_node)
+
+        # Loop through children
+        for child in children:
+            
+            # Child is on the visited list (search entire visited list)
+            if len([visited_child for visited_child in visited_list if visited_child == child]) > 0:
+                continue
+
+            # Create the f, g, and h values
+            child.g = current_node.g + cost
+            ## Heuristic costs calculated here, this is using eucledian distance
+            child.h = (((child.position[0] - end_node.position[0]) ** 2) + 
+                       ((child.position[1] - end_node.position[1]) ** 2)) 
+
+            child.f = child.g + child.h
+
+            # Child is already in the yet_to_visit list and g cost is already lower
+            if len([i for i in yet_to_visit_list if child == i and child.g > i.g]) > 0:
+                continue
+
+            # Add the child to the yet_to_visit list
+            yet_to_visit_list.append(child)
+
+
+if __name__ == '__main__':
+
+    maze = [[0, 1, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [0, 1, 0, 1, 0, 0],
+            [0, 1, 0, 0, 1, 0],
+            [0, 0, 0, 0, 1, 0]]
+    
+    start = [0, 0] # starting position
+    end = [4,5] # ending position
+    cost = 1 # cost per movement
+
+    path = search(maze,cost, start, end)
     print(path)
-    print()
-    draw_grid(map, width, height, spacing=1, path=path, start=start, goal=end)
-    print()
-    print('Steps to goal: {0}'.format(len(path)))
-    print()
-# Tell python to run main method
-if __name__ == "__main__": main()
