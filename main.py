@@ -54,21 +54,23 @@ class Game():
 
         y_v = 0
         x_v = 0
-        
+        i = 0
         for y in range(len(self.world_map)):
             for x in self.world_map[y]:
                 if x == 0:
-                    new = Tile(self.TILES["empty"], x_v, y_v, False)
+                    new = Tile(self.TILES["empty"], x_v, y_v, False, [i, y])
                 elif x == 1:
-                    new = Tile(self.TILES["wall"], x_v, y_v, False)
+                    new = Tile(self.TILES["wall"], x_v, y_v, False, [i, y])
                     self.walls.add(new)
                 elif x == 2:
-                    new = Tile(self.TILES["floor"], x_v, y_v, True)
+                    new = Tile(self.TILES["floor"], x_v, y_v, True, [i, y])
                 x_v += 50
                 self.tiles_list.add(new)
                 self.all_sprites.add(new)
+                i+=1
             y_v += 50
             x_v = 0
+            i = 0
         self.player = Player()
         self.spawn_enemies(15)
         
@@ -175,6 +177,22 @@ class Game():
                 self.all_sprites.update()
                 last_move = move
 
+            tiles_hit = pygame.sprite.spritecollide(self.player, self.tiles_list, False)
+            if tiles_hit:
+                self.player.pos = tiles_hit[0].pos
+            else:
+                self.player.pos = [0, 0]
+
+            
+            enemies = self.enemies.sprites()
+            for enemy in enemies:
+                if enemy.moved:
+                    tiles_hit = pygame.sprite.spritecollide(enemy, self.tiles_list, False)
+                    if tiles_hit:
+                        enemy.pos = tiles_hit[0].pos
+                    else:
+                        enemy.pos = [0, 0]
+
             for sprite in self.all_sprites.sprites():
                 sprite.draw(self.screen)
 
@@ -183,7 +201,7 @@ class Game():
             self.clock.tick(self.FPS)
 
 class Tile(pygame.sprite.Sprite):
-    def __init__(self, image, x, y, walkable):
+    def __init__(self, image, x, y, walkable, pos):
         # Call the parent class (Sprite) constructor
         super().__init__()
  
@@ -194,6 +212,7 @@ class Tile(pygame.sprite.Sprite):
         self.rect.y = y
 
         self.walkable = walkable
+        self.pos = pos
 
     def update(self):
         global move
@@ -215,6 +234,7 @@ class Player(pygame.sprite.Sprite):
 
         self.rect.x = int(SCREENSIZE[0]/2-17.5)
         self.rect.y = int(SCREENSIZE[1]/2-17.5)
+        self.pos = []
 
     def update(self):
         pass
@@ -231,10 +251,25 @@ class Enemy(pygame.sprite.Sprite):
         self.rect.x = pos[0]
         self.rect.y = pos[1]
 
+        self.pos = []
+
+        self.moved = False
+
     def update(self):
         global move
-        self.rect.x += move[0]
-        self.rect.y += move[1]
+        to_move = random.choice([True, False])
+        if to_move:
+            x_move = 0
+            y_move = 0
+        else:
+            x_move = 0
+            y_move = 0
+        self.rect.x += move[0]+x_move
+        self.rect.y += move[1]+y_move
+        if x_move != 0 and y_move != 0:
+            self.moved = True
+        else:
+            self.moved = False
 
     def draw(self, screen):
         if -75 < self.rect.x < SCREENSIZE[0]+75:
