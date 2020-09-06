@@ -73,11 +73,13 @@ class Game():
             x_v = 0
             i = 0
         self.player = Player(30)
-        self.spawn_enemies(10)
+        self.spawn_enemies(15)
         
         self.all_sprites.add(self.player)
 
         self.spawn_player()
+        self.hud = Hud()
+        self.all_sprites.add(self.hud)
 
     def update_fps(self):
         fps = "FPS: " + str(math.ceil(self.clock.get_fps()))
@@ -225,11 +227,11 @@ class Game():
                         enemy.pos = [0, 0]
                 if enemy.attack:
                     self.player.health -= enemy.damage
-                    print("PLAYER HEALTH: " + str(self.player.health))
                     if self.player.health < 1:
                         game_over = True
                         self.player.health = 0
                         self.game_running = False
+                    print("PLAYER HEALTH: " + str(self.player.health))
             
             for enemy in enemies:
                 in_screen = False
@@ -261,6 +263,7 @@ class Game():
             self.clock.tick(self.FPS)
 
         if game_over:
+            self.screen.fill(self.BLACK)
             loading = "GAME OVER"
             text = self.SCORE_FONT.render(loading, 1, self.RED)
             self.screen.blit(text, (600,500))
@@ -436,7 +439,19 @@ class Enemy(pygame.sprite.Sprite):
 class Line(pygame.sprite.Sprite):
     def __init__(self, enemy, player, screen):
         self.rect = pygame.draw.line(screen, (0, 0, 0), player.rect[0:2], enemy.rect[0:2])
-        
+
+class Hud(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.image = pygame.image.load("graphics/hud/hud.png")
+        self.rect = self.image.get_rect()
+
+        self.rect.x = 0
+        self.rect.y = 940
+
+    def draw(self, screen):
+        screen.blit(self.image, self.rect)
+
 if __name__ == "__main__":
     game = Game()
     game.main()
