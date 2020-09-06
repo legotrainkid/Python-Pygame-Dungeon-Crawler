@@ -73,7 +73,7 @@ class Game():
             x_v = 0
             i = 0
         self.player = Player()
-        self.spawn_enemies(15)
+        self.spawn_enemies(10)
         
         self.all_sprites.add(self.player)
 
@@ -300,19 +300,19 @@ class Enemy(pygame.sprite.Sprite):
 
         self.name = str(frame)
 
+        self.goal_x = 0
+        self.goal_y = 0
+
+        self.to_move_x = 0
+        self.to_move_y = 0
+
     def update(self):
         global move
-        to_move = random.choice([True, False])
-        if to_move:
-            x_move = 0
-            y_move = 0
-        else:
-            x_move = 0
-            y_move = 0
-        self.rect.x += move[0]+x_move
-        self.rect.y += move[1]+y_move
+        self.move_to_player()
+        self.rect.x += move[0]+self.to_move_x
+        self.rect.y += move[1]+self.to_move_y
         
-        if x_move != 0 and y_move != 0:
+        if self.to_move_x != 0 or self.to_move_y != 0:
             self.moved = True
         else:
             self.moved = False
@@ -333,10 +333,45 @@ class Enemy(pygame.sprite.Sprite):
         if self.see_player:
             self.see_player = False
 
+    def move_to_player(self):
+        if self.on_screen and self.path:
+            if self.pos[0] == self.path[0][0] and self.pos[1] == self.path[0][1]:
+                self.path = self.path[1:]
+            self.move()
+            
     def draw(self, screen):
-        if -75 < self.rect.x < SCREENSIZE[0]+75:
+        if self.on_screen:
+            screen.blit(self.image, self.rect)
+
+    def move(self):
+        if self.path:
+            if self.pos[0] > self.path[0][0]:
+                self.goal_x = -1
+                self.goal_y = 0
+            elif self.pos[0] < self.path[0][0]:
+                self.goal_x = 1
+                self.goal_y = 0
+            elif self.pos[1] > self.path[0][1]:
+                self.goal_y = -1
+                self.goal_x = 0
+            elif self.pos[1] < self.path[0][1]:
+                self.goal_y = 1
+                self.goal_x = 0
+            self.to_move_x = 2*self.goal_x
+            self.to_move_y = 2*self.goal_y
+        else:
+            self.to_move_x = 0
+            self.to_move_y = 0
+
+    @property
+    def on_screen(self):
+        if -40 < self.rect.x < SCREENSIZE[0] + 40:
             if -75 < self.rect.y < SCREENSIZE[1]+75:
-                screen.blit(self.image, self.rect)
+                return True
+            else:
+                return False
+        else:
+            return False
 
 class Line(pygame.sprite.Sprite):
     def __init__(self, enemy, player, screen):
