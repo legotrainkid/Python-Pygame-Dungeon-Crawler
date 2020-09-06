@@ -2,6 +2,7 @@ import pygame
 import math
 import random
 import generation
+import pathfinding
 
 pygame.init()
 
@@ -54,23 +55,25 @@ class Game():
 
         y_v = 0
         x_v = 0
-        
+        i = 0
         for y in range(len(self.world_map)):
             for x in self.world_map[y]:
                 if x == 0:
-                    new = Tile(self.TILES["empty"], x_v, y_v, False)
+                    new = Tile(self.TILES["empty"], x_v, y_v, True, [i, y])
                 elif x == 1:
-                    new = Tile(self.TILES["wall"], x_v, y_v, False)
+                    new = Tile(self.TILES["wall"], x_v, y_v, True, [i, y])
                     self.walls.add(new)
                 elif x == 2:
-                    new = Tile(self.TILES["floor"], x_v, y_v, True)
+                    new = Tile(self.TILES["floor"], x_v, y_v, False, [i, y])
                 x_v += 50
                 self.tiles_list.add(new)
                 self.all_sprites.add(new)
+                i+=1
             y_v += 50
             x_v = 0
-        self.player = Player()
-        self.spawn_enemies(15)
+            i = 0
+        self.player = Player(30)
+        self.spawn_enemies(10)
         
         self.all_sprites.add(self.player)
 
@@ -100,14 +103,14 @@ class Game():
             hit_list = pygame.sprite.spritecollide(self.player, self.tiles_list, False)
             invalid_spawn = False
             for tile in hit_list:
-                if not tile.walkable:
+                if tile.is_barrier:
                     invalid_spawn = True
             move = [0, 0]
 
     def spawn_enemies(self, num):
         for i in range(num):
             pos = self.spawn_ent()
-            enemy = Enemy(pos)
+            enemy = Enemy(pos, i)
             self.all_sprites.add(enemy)
             self.enemies.add(enemy)
 
@@ -131,6 +134,23 @@ class Game():
         global move
         can_move = [True, True, True, True]
         last_move = [0, 0]
+        enemies = self.enemies.sprites()
+        tile_map = []
+        game_over = False
+        for y in range(len(self.world_map)):
+            row = []
+            for x in range(len(self.world_map[y])):
+                if self.world_map[y][x] == 2:
+                    row.append(0)
+                else:
+                    row.append(1)
+            tile_map.append(row)
+        for enemy in enemies:
+            tiles_hit = pygame.sprite.spritecollide(enemy, self.tiles_list, False)
+            if tiles_hit:
+                enemy.pos = tiles_hit[0].pos
+            else:
+                enemy.pos = [0, 0]
         while self.game_running:
             
             for event in pygame.event.get():
@@ -175,6 +195,64 @@ class Game():
                 self.all_sprites.update()
                 last_move = move
 
+            x_pos = 0
+            y_pos = 0
+
+            tiles_hit = pygame.sprite.spritecollide(self.player, self.tiles_list, False)
+            for tile in tiles_hit:
+                x_pos += tile.pos[0]
+                y_pos += tile.pos[1]
+            if tiles_hit:
+                x_pos /= len(tiles_hit)
+                y_pos /= len(tiles_hit)
+                self.player.pos = [x_pos, y_pos]
+            else:
+                self.player.pos = [0, 0]
+
+            for enemy in enemies:
+                if enemy.moved:
+                    x_pos = 0
+                    y_pos = 0
+                    tiles_hit = pygame.sprite.spritecollide(enemy, self.tiles_list, False)
+                    for tile in tiles_hit:
+                        x_pos += tile.pos[0]
+                        y_pos += tile.pos[1]
+                    if tiles_hit:
+                        x_pos /= len(tiles_hit)
+                        y_pos /= len(tiles_hit)
+                        enemy.pos = [x_pos, y_pos]
+                    else:
+                        enemy.pos = [0, 0]
+                if enemy.attack:
+                    self.player.health -= enemy.damage
+                    print("PLAYER HEALTH: " + str(self.player.health))
+                    if self.player.health < 1:
+                        game_over = True
+                        self.player.health = 0
+                        self.game_running = False
+            
+            for enemy in enemies:
+                in_screen = False
+                if 0 < enemy.rect.x < SCREENSIZE[0]:
+                    if 0 < enemy.rect.y < SCREENSIZE[1]:
+                        in_screen = True
+
+                if enemy.frames_since >= 30 and not enemy.see_player and in_screen:
+                    line = Line(enemy, self.player, self.screen)
+                    line_list = pygame.sprite.spritecollide(line, self.walls, False)
+                    if line_list:
+                        enemy.see_player = False
+                    else:
+                        enemy.see_player = True
+                    del line
+                    continue
+                    
+                if enemy.update_path:
+                    end = [int(self.player.pos[1]), int(self.player.pos[0])]
+                    start = [int(enemy.pos[1]), int(enemy.pos[0])]
+                    enemy.path = pathfinding.search(tile_map, 1, start, end)
+                    continue
+
             for sprite in self.all_sprites.sprites():
                 sprite.draw(self.screen)
 
@@ -182,8 +260,20 @@ class Game():
             pygame.display.flip()
             self.clock.tick(self.FPS)
 
+        if game_over:
+            loading = "GAME OVER"
+            text = self.SCORE_FONT.render(loading, 1, self.RED)
+            self.screen.blit(text, (600,500))
+            pygame.display.flip()
+            running = True
+            while running:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        running = False
+        pygame.quit()
+
 class Tile(pygame.sprite.Sprite):
-    def __init__(self, image, x, y, walkable):
+    def __init__(self, image, x, y, barrier, pos):
         # Call the parent class (Sprite) constructor
         super().__init__()
  
@@ -193,7 +283,8 @@ class Tile(pygame.sprite.Sprite):
         self.rect.x = x
         self.rect.y = y
 
-        self.walkable = walkable
+        self.is_barrier = barrier
+        self.pos = pos
 
     def update(self):
         global move
@@ -206,7 +297,7 @@ class Tile(pygame.sprite.Sprite):
                 screen.blit(self.image, self.rect)
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, health):
         super().__init__()
 
         self.image = pygame.image.load("graphics/characters/player.png").convert()
@@ -215,6 +306,9 @@ class Player(pygame.sprite.Sprite):
 
         self.rect.x = int(SCREENSIZE[0]/2-17.5)
         self.rect.y = int(SCREENSIZE[1]/2-17.5)
+        self.pos = []
+
+        self.health = health
 
     def update(self):
         pass
@@ -223,26 +317,127 @@ class Player(pygame.sprite.Sprite):
         screen.blit(self.image, self.rect)
 
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self, pos):
+    def __init__(self, pos, frame):
         super().__init__()
         self.image = pygame.image.load("graphics/characters/enemy.png").convert()
         self.rect = self.image.get_rect()
 
-        self.rect.x = pos[0]
-        self.rect.y = pos[1]
+        self.rect.x = pos[0]+5
+        self.rect.y = pos[1]+5
+
+        self.pos = [0, 0]
+
+        self.path = []
+
+        self.moved = False
+
+        self.update_path = False
+        self.player_moved = False
+        self.frames_since = frame
+
+        self.see_player = False
+
+        self.name = str(frame)
+
+        self.goal_x = 0
+        self.goal_y = 0
+
+        self.to_move_x = 0
+        self.to_move_y = 0
+
+        self.attack_frames = 0
+        self.cooldown = 120
+        self.damage = 3
 
     def update(self):
         global move
-        self.rect.x += move[0]
-        self.rect.y += move[1]
+        self.move_to_player()
+        self.rect.x += move[0]+self.to_move_x
+        self.rect.y += move[1]+self.to_move_y
+        
+        if self.to_move_x != 0 or self.to_move_y != 0:
+            self.moved = True
+        else:
+            self.moved = False
 
+        
+        if move[0] != 0 or move[1] != 0:
+            self.player_moved = True
+        
+        if self.frames_since > 30 and self.player_moved and self.see_player:
+            self.update_path = True
+            self.frames_since = 0
+            self.player_moved = False
+        elif self.frames_since > 30:
+            self.frames_since = 0
+        else:
+            self.update_path = False
+            self.frames_since += 1
+        if self.see_player:
+            self.see_player = False
+
+    def move_to_player(self):
+        if self.on_screen and self.path:
+            if self.pos[0] == self.path[0][0] and self.pos[1] == self.path[0][1]:
+                self.path = self.path[1:]
+            self.move()
+            
     def draw(self, screen):
-        if -75 < self.rect.x < SCREENSIZE[0]+75:
-            if -75 < self.rect.y < SCREENSIZE[1]+75:
-                screen.blit(self.image, self.rect)
+        if self.on_screen:
+            screen.blit(self.image, self.rect)
 
+    def move(self):
+        if self.path:
+            if self.pos[0] > self.path[0][0]:
+                self.goal_x = -1
+                self.goal_y = 0
+            elif self.pos[0] < self.path[0][0]:
+                self.goal_x = 1
+                self.goal_y = 0
+            elif self.pos[1] > self.path[0][1]:
+                self.goal_y = -1
+                self.goal_x = 0
+            elif self.pos[1] < self.path[0][1]:
+                self.goal_y = 1
+                self.goal_x = 0
+            self.to_move_x = 2*self.goal_x
+            self.to_move_y = 2*self.goal_y
+        else:
+            self.to_move_x = 0
+            self.to_move_y = 0
+
+    @property
+    def attack(self):
+        if SCREENSIZE[0]/2-50 < self.rect.x < SCREENSIZE[0]/2+50:
+            if SCREENSIZE[1]/2-50 < self.rect.y < SCREENSIZE[1]/2+50:
+                if self.attack_frames > self.cooldown:
+                    self.attack_frames = 0
+                    return True
+                else:
+                    self.attack_frames += 1
+                    return False
+            else:
+                self.attack_frames += 1
+                return False
+        else:
+            self.attack_frames += 1
+            return False
+
+    @property
+    def on_screen(self):
+        if -40 < self.rect.x < SCREENSIZE[0] + 40:
+            if -75 < self.rect.y < SCREENSIZE[1]+75:
+                return True
+            else:
+                return False
+        else:
+            return False
+
+class Line(pygame.sprite.Sprite):
+    def __init__(self, enemy, player, screen):
+        self.rect = pygame.draw.line(screen, (0, 0, 0), player.rect[0:2], enemy.rect[0:2])
+        
 if __name__ == "__main__":
     game = Game()
     game.main()
     
-    pygame.quit()
