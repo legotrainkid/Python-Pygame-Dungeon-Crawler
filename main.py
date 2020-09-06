@@ -72,7 +72,7 @@ class Game():
             y_v += 50
             x_v = 0
             i = 0
-        self.player = Player()
+        self.player = Player(30)
         self.spawn_enemies(10)
         
         self.all_sprites.add(self.player)
@@ -136,6 +136,7 @@ class Game():
         last_move = [0, 0]
         enemies = self.enemies.sprites()
         tile_map = []
+        game_over = False
         for y in range(len(self.world_map)):
             row = []
             for x in range(len(self.world_map[y])):
@@ -222,6 +223,13 @@ class Game():
                         enemy.pos = [x_pos, y_pos]
                     else:
                         enemy.pos = [0, 0]
+                if enemy.attack:
+                    self.player.health -= enemy.damage
+                    print("PLAYER HEALTH: " + str(self.player.health))
+                    if self.player.health < 1:
+                        game_over = True
+                        self.player.health = 0
+                        self.game_running = False
             
             for enemy in enemies:
                 in_screen = False
@@ -252,6 +260,18 @@ class Game():
             pygame.display.flip()
             self.clock.tick(self.FPS)
 
+        if game_over:
+            loading = "GAME OVER"
+            text = self.SCORE_FONT.render(loading, 1, self.RED)
+            self.screen.blit(text, (600,500))
+            pygame.display.flip()
+            running = True
+            while running:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        running = False
+        pygame.quit()
+
 class Tile(pygame.sprite.Sprite):
     def __init__(self, image, x, y, barrier, pos):
         # Call the parent class (Sprite) constructor
@@ -277,7 +297,7 @@ class Tile(pygame.sprite.Sprite):
                 screen.blit(self.image, self.rect)
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, health):
         super().__init__()
 
         self.image = pygame.image.load("graphics/characters/player.png").convert()
@@ -287,6 +307,8 @@ class Player(pygame.sprite.Sprite):
         self.rect.x = int(SCREENSIZE[0]/2-17.5)
         self.rect.y = int(SCREENSIZE[1]/2-17.5)
         self.pos = []
+
+        self.health = health
 
     def update(self):
         pass
@@ -322,6 +344,10 @@ class Enemy(pygame.sprite.Sprite):
 
         self.to_move_x = 0
         self.to_move_y = 0
+
+        self.attack_frames = 0
+        self.cooldown = 120
+        self.damage = 3
 
     def update(self):
         global move
@@ -381,6 +407,23 @@ class Enemy(pygame.sprite.Sprite):
             self.to_move_y = 0
 
     @property
+    def attack(self):
+        if SCREENSIZE[0]/2-50 < self.rect.x < SCREENSIZE[0]/2+50:
+            if SCREENSIZE[1]/2-50 < self.rect.y < SCREENSIZE[1]/2+50:
+                if self.attack_frames > self.cooldown:
+                    self.attack_frames = 0
+                    return True
+                else:
+                    self.attack_frames += 1
+                    return False
+            else:
+                self.attack_frames += 1
+                return False
+        else:
+            self.attack_frames += 1
+            return False
+
+    @property
     def on_screen(self):
         if -40 < self.rect.x < SCREENSIZE[0] + 40:
             if -75 < self.rect.y < SCREENSIZE[1]+75:
@@ -398,4 +441,3 @@ if __name__ == "__main__":
     game = Game()
     game.main()
     
-    pygame.quit()
