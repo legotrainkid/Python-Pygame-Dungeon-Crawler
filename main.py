@@ -194,20 +194,35 @@ class Game():
                 self.all_sprites.update()
                 last_move = move
 
+            x_pos = 0
+            y_pos = 0
+
             tiles_hit = pygame.sprite.spritecollide(self.player, self.tiles_list, False)
+            for tile in tiles_hit:
+                x_pos += tile.pos[0]
+                y_pos += tile.pos[1]
             if tiles_hit:
-                self.player.pos = tiles_hit[0].pos
+                x_pos /= len(tiles_hit)
+                y_pos /= len(tiles_hit)
+                self.player.pos = [x_pos, y_pos]
             else:
                 self.player.pos = [0, 0]
 
             for enemy in enemies:
                 if enemy.moved:
+                    x_pos = 0
+                    y_pos = 0
                     tiles_hit = pygame.sprite.spritecollide(enemy, self.tiles_list, False)
+                    for tile in tiles_hit:
+                        x_pos += tile.pos[0]
+                        y_pos += tile.pos[1]
                     if tiles_hit:
-                        enemy.pos = tiles_hit[0].pos
+                        x_pos /= len(tiles_hit)
+                        y_pos /= len(tiles_hit)
+                        enemy.pos = [x_pos, y_pos]
                     else:
                         enemy.pos = [0, 0]
-
+            
             for enemy in enemies:
                 in_screen = False
                 if 0 < enemy.rect.x < SCREENSIZE[0]:
@@ -225,7 +240,9 @@ class Game():
                     continue
                     
                 if enemy.update_path:
-                    enemy.path = pathfinding.search(tile_map, 1, enemy.pos[::-1], self.player.pos[::-1])
+                    end = [int(self.player.pos[1]), int(self.player.pos[0])]
+                    start = [int(enemy.pos[1]), int(enemy.pos[0])]
+                    enemy.path = pathfinding.search(tile_map, 1, start, end)
                     continue
 
             for sprite in self.all_sprites.sprites():

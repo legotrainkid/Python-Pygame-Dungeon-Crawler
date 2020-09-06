@@ -72,7 +72,12 @@ def search(maze, cost, start, end):
     # Adding a stop condition. This is to avoid any infinite loop and stop 
     # execution after some reasonable number of steps
     outer_iterations = 0
-    max_iterations = (len(maze) // 2) ** 10
+    if maze[start_node.position[0]][start_node.position[1]] != 0:
+        max_iterations = 1
+    elif maze[start_node.position[0]][start_node.position[1]] != 0:
+        max_iterations = 1
+    else:
+        max_iterations = (len(maze) // 2) ** 10
 
     # what squares do we search . serarch movement is left-right-top-bottom 
     #(4 movements) from every positon
@@ -123,7 +128,7 @@ def search(maze, cost, start, end):
         # computation cost is too high
         if outer_iterations > max_iterations:
             print ("giving up on pathfinding too many iterations")
-            return return_path(current_node,maze)
+            return []
 
         # Pop current node out off yet_to_visit list, add to visited list
         yet_to_visit_list.pop(current_index)
@@ -184,13 +189,13 @@ def search(maze, cost, start, end):
 if __name__ == '__main__':
 
     maze = [[0, 1, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0],
             [0, 1, 0, 1, 0, 0],
             [0, 1, 0, 0, 1, 0],
             [0, 0, 0, 0, 1, 0]]
     
     start = [0, 0] # starting position
-    end = [4,5] # ending position
+    end = [0,5] # ending position
     cost = 1 # cost per movement
 
     path = search(maze,cost, start, end)
