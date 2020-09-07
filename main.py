@@ -19,7 +19,7 @@ class Game():
         self.RED = (255, 0, 0)
         self.FPS_FONT = pygame.font.Font("freesansbold.ttf", 11)
         self.SCORE_FONT = pygame.font.Font("freesansbold.ttf", 18)
-        self.MOVE_SPEED = 3
+        self.MOVE_SPEED = 2
         self.MAPSIZE = 80
         self.FPS = 60
 
@@ -72,12 +72,15 @@ class Game():
             y_v += 50
             x_v = 0
             i = 0
-        self.player = Player(30)
-        self.spawn_enemies(10)
+        self.player = Player(30, 500)
+        self.spawn_enemies(15)
         
         self.all_sprites.add(self.player)
 
         self.spawn_player()
+        colors = {"red": self.RED, "green":self.GREEN}
+        self.hud = Hud(self.screen, colors, self.player)
+        self.all_sprites.add(self.hud)
 
     def update_fps(self):
         fps = "FPS: " + str(math.ceil(self.clock.get_fps()))
@@ -165,6 +168,9 @@ class Game():
                         move = [self.MOVE_SPEED, 0]
                     elif event.key == pygame.K_d and can_move[2]:
                         move = [-self.MOVE_SPEED, 0]
+                    elif event.key == pygame.K_SPACE:
+                        self.player.sprint = True
+                        self.update_frames = 1
                 elif event.type == pygame.KEYUP:
                     if event.key == pygame.K_w:
                         move = [0, 0]
@@ -174,6 +180,24 @@ class Game():
                         move = [0, 0]
                     elif event.key == pygame.K_d:
                         move = [0, 0]
+                    elif event.key == pygame.K_SPACE:
+                        self.player.sprint = False
+                        self.update_frames = 5
+
+            if self.player.sprint:
+                self.MOVE_SPEED = 4
+            else:
+                self.MOVE_SPEED = 2
+            if move[0] > 0:
+                move[0] = self.MOVE_SPEED
+            elif move[0] < 0:
+                move[0] = -self.MOVE_SPEED
+            elif move[1] > 0:
+                move[1] = self.MOVE_SPEED
+            elif move[1] < 0:
+                move[1] = -self.MOVE_SPEED
+            elif move[0] == 0 and move[1] == 0:
+                self.player.sprint = False
             
             self.screen.fill(self.BLACK)
 
@@ -225,7 +249,6 @@ class Game():
                         enemy.pos = [0, 0]
                 if enemy.attack:
                     self.player.health -= enemy.damage
-                    print("PLAYER HEALTH: " + str(self.player.health))
                     if self.player.health < 1:
                         game_over = True
                         self.player.health = 0
@@ -250,7 +273,8 @@ class Game():
                 if enemy.update_path:
                     end = [int(self.player.pos[1]), int(self.player.pos[0])]
                     start = [int(enemy.pos[1]), int(enemy.pos[0])]
-                    enemy.path = pathfinding.search(tile_map, 1, start, end)
+                    if not tile_map[end[0]][end[1]] and not tile_map[start[0]][start[1]]:
+                        enemy.path = pathfinding.search(tile_map, 1, start, end)
                     continue
 
             for sprite in self.all_sprites.sprites():
@@ -261,6 +285,7 @@ class Game():
             self.clock.tick(self.FPS)
 
         if game_over:
+            self.screen.fill(self.BLACK)
             loading = "GAME OVER"
             text = self.SCORE_FONT.render(loading, 1, self.RED)
             self.screen.blit(text, (600,500))
@@ -297,7 +322,7 @@ class Tile(pygame.sprite.Sprite):
                 screen.blit(self.image, self.rect)
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, health):
+    def __init__(self, health, stamina):
         super().__init__()
 
         self.image = pygame.image.load("graphics/characters/player.png").convert()
@@ -308,10 +333,32 @@ class Player(pygame.sprite.Sprite):
         self.rect.y = int(SCREENSIZE[1]/2-17.5)
         self.pos = []
 
+        self.MAX_HEALTH = health
         self.health = health
 
+        self.sprint = False
+        self.stamina = stamina
+        self.MAX_STAMINA = stamina
+        self.update_frames = 1
+
     def update(self):
-        pass
+        if self.stamina < 1:
+            self.sprint = False
+        if self.sprint:
+            if not self.update_frames:
+                self.stamina -= 1
+                self.update_frames = 1
+            else:
+                self.update_frames-=1
+        elif not self.sprint:
+            if not self.update_frames:
+                if self.stamina < self.MAX_STAMINA:
+                    self.stamina +=1
+                    self.update_frames = 5
+            else:
+                self.update_frames-=1
+        if self.update_frames < 0:
+            self.update_frames = 0
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
@@ -400,8 +447,8 @@ class Enemy(pygame.sprite.Sprite):
             elif self.pos[1] < self.path[0][1]:
                 self.goal_y = 1
                 self.goal_x = 0
-            self.to_move_x = 2*self.goal_x
-            self.to_move_y = 2*self.goal_y
+            self.to_move_x = 3*self.goal_x
+            self.to_move_y = 3*self.goal_y
         else:
             self.to_move_x = 0
             self.to_move_y = 0
@@ -436,7 +483,37 @@ class Enemy(pygame.sprite.Sprite):
 class Line(pygame.sprite.Sprite):
     def __init__(self, enemy, player, screen):
         self.rect = pygame.draw.line(screen, (0, 0, 0), player.rect[0:2], enemy.rect[0:2])
-        
+
+class Hud(pygame.sprite.Sprite):
+    def __init__(self, screen, colors, player):
+        super().__init__()
+        self.colors = colors
+        self.image = pygame.image.load("graphics/hud/hud.png")
+        self.rect = self.image.get_rect()
+
+        self.rect.x = 0
+        self.rect.y = 940
+
+        self.screen = screen
+
+        self.HEALTH_POS = [125, 949, 217, 18]
+        self.STAMINA_POS = [125, 975, 217, 16]
+
+        self.player = player
+
+    def draw(self, screen):
+        screen.blit(self.image, self.rect)
+        pygame.draw.rect(self.screen, self.colors["red"],
+                                       [self.HEALTH_POS[0],
+                                        self.HEALTH_POS[1],
+                                        int(self.HEALTH_POS[2]*(self.player.health/self.player.MAX_HEALTH)),
+                                        self.HEALTH_POS[3]])
+        pygame.draw.rect(self.screen, self.colors["green"],
+                                       [self.STAMINA_POS[0],
+                                        self.STAMINA_POS[1],
+                                        int(self.STAMINA_POS[2]*(self.player.stamina/self.player.MAX_STAMINA)),
+                                        self.STAMINA_POS[3]])
+
 if __name__ == "__main__":
     game = Game()
     game.main()
