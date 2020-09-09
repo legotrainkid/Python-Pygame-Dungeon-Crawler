@@ -30,6 +30,8 @@ class Game():
 
         self.screen.fill(self.BLACK)
 
+        self.items = {"sword" : {"image" : pygame.image.load("graphics/items/inventory/sword.png").convert()}}
+
         loading = "LOADING..."
         text = self.SCORE_FONT.render(loading, 1, self.WHITE)
         self.screen.blit(text, (600,500))
@@ -73,7 +75,7 @@ class Game():
             x_v = 0
             i = 0
         self.player = Player(30, 500)
-        self.spawn_enemies(15)
+        self.spawn_enemies(0)
         
         self.all_sprites.add(self.player)
 
@@ -81,6 +83,11 @@ class Game():
         colors = {"red": self.RED, "green":self.GREEN}
         self.hud = Hud(self.screen, colors, self.player)
         self.all_sprites.add(self.hud)
+        self.inventory = Inventory(self.player)
+        self.all_sprites.add(self.inventory)
+        adding = True
+        for i in range(25):
+            self.inventory.add_item(self.items["sword"])
 
     def update_fps(self):
         fps = "FPS: " + str(math.ceil(self.clock.get_fps()))
@@ -171,6 +178,11 @@ class Game():
                     elif event.key == pygame.K_SPACE:
                         self.player.sprint = True
                         self.update_frames = 1
+                    elif event.key == pygame.K_e:
+                        if self.inventory.show:
+                            self.inventory.show = False
+                        else:
+                            self.inventory.show = True
                 elif event.type == pygame.KEYUP:
                     if event.key == pygame.K_w:
                         move = [0, 0]
@@ -340,6 +352,7 @@ class Player(pygame.sprite.Sprite):
         self.stamina = stamina
         self.MAX_STAMINA = stamina
         self.update_frames = 1
+        self.inventory = []
 
     def update(self):
         if self.stamina < 1:
@@ -469,7 +482,7 @@ class Enemy(pygame.sprite.Sprite):
         else:
             self.attack_frames += 1
             return False
-
+        
     @property
     def on_screen(self):
         if -40 < self.rect.x < SCREENSIZE[0] + 40:
@@ -513,6 +526,57 @@ class Hud(pygame.sprite.Sprite):
                                         self.STAMINA_POS[1],
                                         int(self.STAMINA_POS[2]*(self.player.stamina/self.player.MAX_STAMINA)),
                                         self.STAMINA_POS[3]])
+
+class Inventory(pygame.sprite.Sprite):
+    def __init__(self, player):
+        super().__init__()
+
+        self.image = pygame.image.load("graphics/hud/inventory.png").convert()
+        self.rect = self.image.get_rect()
+
+        self.rect.x = 100
+        self.rect.y = 100
+
+        self.show = False
+
+        self.player = player
+        self.items = []
+
+    def add_item(self, item_data):
+        if len(self.items) < 364:
+            self.items.append(Inventory_Item(item_data))
+            return True
+        else:
+            return False
+
+    def draw(self, screen):
+        if self.show:
+            screen.blit(self.image, self.rect)
+            x = 110
+            y = 407
+            i = 1
+            for item in self.items:
+                if i == 29:
+                    i = 1
+                    x = 110
+                    y += 35
+                item.draw(x, y, screen)
+                x += 35
+                i += 1
+
+class Inventory_Item(pygame.sprite.Sprite):
+    def __init__(self, item_data):
+        self.item = item_data
+        self.image = self.item["image"]
+        self.rect = self.image.get_rect()
+
+        self.rect.x = 0
+        self.rect.y = 0
+
+    def draw(self, x, y, screen):
+        self.rect.x = x
+        self.rect.y = y
+        screen.blit(self.image, self.rect)
 
 if __name__ == "__main__":
     game = Game()
