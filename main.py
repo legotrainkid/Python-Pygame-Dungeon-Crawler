@@ -30,7 +30,9 @@ class Game():
 
         self.screen.fill(self.BLACK)
 
-        self.items = {"sword" : {"image" : pygame.image.load("graphics/items/inventory/sword.png").convert()}}
+        self.items = {"sword" : {"image" : pygame.image.load("graphics/items/inventory/sword.png").convert(),
+                                 "selected" : pygame.image.load("graphics/items/inventory/sword_selected.png").convert(),
+                                 "type" : "melee"}}
 
         loading = "LOADING..."
         text = self.SCORE_FONT.render(loading, 1, self.WHITE)
@@ -85,9 +87,7 @@ class Game():
         self.all_sprites.add(self.hud)
         self.inventory = Inventory(self.player)
         self.all_sprites.add(self.inventory)
-        adding = True
-        for i in range(25):
-            self.inventory.add_item(self.items["sword"])
+        self.inventory.add_item(self.items["sword"])
 
     def update_fps(self):
         fps = "FPS: " + str(math.ceil(self.clock.get_fps()))
@@ -147,6 +147,7 @@ class Game():
         enemies = self.enemies.sprites()
         tile_map = []
         game_over = False
+        mouse_sprite = Sprite_Mouse_Location()
         for y in range(len(self.world_map)):
             row = []
             for x in range(len(self.world_map[y])):
@@ -195,6 +196,16 @@ class Game():
                     elif event.key == pygame.K_SPACE:
                         self.player.sprint = False
                         self.update_frames = 5
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if self.inventory.show:
+                        if event.button == 1:
+                            mouse_sprite.rect.x , mouse_sprite.rect.y = pygame.mouse.get_pos() # have to have this to update mouse here or get wrong location 
+                            for s in self.inventory.items: #can't have outside the event or it will continuously check
+                                if pygame.sprite.collide_rect(mouse_sprite, s):
+                                    self.inventory.selected = s
+                            for s in self.inventory.buttons:
+                                if pygame.sprite.collide_rect(mouse_sprite, s):
+                                    s.function()
 
             if self.player.sprint:
                 self.MOVE_SPEED = 4
@@ -541,6 +552,12 @@ class Inventory(pygame.sprite.Sprite):
 
         self.player = player
         self.items = []
+        self.buttons = []
+
+        self.selected = None
+
+        self.buttons.append(Button(pygame.image.load("graphics/hud/equip_button.png").convert(), 725, 350, self.equip_item))
+        self.buttons.append(Button(pygame.image.load("graphics/hud/drop_button.png").convert(), 850, 350, self.drop_item))
 
     def add_item(self, item_data):
         if len(self.items) < 364:
@@ -552,17 +569,38 @@ class Inventory(pygame.sprite.Sprite):
     def draw(self, screen):
         if self.show:
             screen.blit(self.image, self.rect)
-            x = 110
-            y = 407
+            x = 117
+            y = 414
             i = 1
             for item in self.items:
-                if i == 29:
+                if i == 21:
                     i = 1
-                    x = 110
-                    y += 35
+                    x = 117
+                    y += 49
                 item.draw(x, y, screen)
-                x += 35
+                x += 49
                 i += 1
+            for button in self.buttons:
+                button.draw(screen)
+
+    def update(self):
+        if not self.show:
+            self.selected = None
+        for item in self.items:
+            if item == self.selected:
+                item.image = item.item["selected"]
+            else:
+                item.image = item.item["image"]
+
+    def drop_item(self):
+        if self.selected:
+            for i in range(len(self.items)):
+                if self.items[i] == self.selected:
+                    del self.items[i]
+                    break
+            
+    def equip_item(self):
+        print("equiped")
 
 class Inventory_Item(pygame.sprite.Sprite):
     def __init__(self, item_data):
@@ -576,6 +614,23 @@ class Inventory_Item(pygame.sprite.Sprite):
     def draw(self, x, y, screen):
         self.rect.x = x
         self.rect.y = y
+        screen.blit(self.image, self.rect)
+
+class Sprite_Mouse_Location(pygame.sprite.Sprite):
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.rect = pygame.Rect( 0 , 0 , 1 , 1 )
+
+class Button(pygame.sprite.Sprite):
+    def __init__(self, image, x, y, function):
+        self.image = image
+        self.rect = self.image.get_rect()
+
+        self.rect.x = x
+        self.rect.y = y
+        self.function = function
+
+    def draw(self, screen):
         screen.blit(self.image, self.rect)
 
 if __name__ == "__main__":
