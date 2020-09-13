@@ -77,7 +77,7 @@ class Game():
             x_v = 0
             i = 0
         self.player = Player(30, 500)
-        self.spawn_enemies(0)
+        self.spawn_enemies(10)
         
         self.all_sprites.add(self.player)
 
@@ -307,17 +307,29 @@ class Game():
             pygame.display.flip()
             self.clock.tick(self.FPS)
 
-        if game_over:
-            self.screen.fill(self.BLACK)
-            loading = "GAME OVER"
-            text = self.SCORE_FONT.render(loading, 1, self.RED)
-            self.screen.blit(text, (600,500))
-            pygame.display.flip()
-            running = True
-            while running:
-                for event in pygame.event.get():
-                    if event.type == pygame.QUIT:
-                        running = False
+        if self.player.health == 0:
+            lost = True
+        else:
+            lost = False
+
+        self.exit_screen(lost)
+
+    def exit_screen(self, lost, text=None):
+        self.screen.fill(self.BLACK)
+        if not text:
+            if lost:
+                text = "Game Over: You Lost"
+            else:
+                "Game Over: You Win"
+        
+        to_display = self.SCORE_FONT.render(text, 1, self.RED)
+        self.screen.blit(to_display, (600,500))
+        pygame.display.flip()
+        running = True
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
         pygame.quit()
 
 class Tile(pygame.sprite.Sprite):
