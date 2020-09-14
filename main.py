@@ -30,9 +30,9 @@ class Game():
 
         self.screen.fill(self.BLACK)
 
-        self.items = {"sword" : {"image" : pygame.image.load("graphics/items/inventory/sword.png").convert(),
-                                 "selected" : pygame.image.load("graphics/items/inventory/sword_selected.png").convert(),
-                                 "type" : "melee"}}
+        import ITEMS
+
+        self.items = ITEMS.load()
 
         loading = "LOADING..."
         text = self.SCORE_FONT.render(loading, 1, self.WHITE)
@@ -88,7 +88,7 @@ class Game():
         self.inventory = Inventory(self.player)
         self.all_sprites.add(self.inventory)
         self.inventory.add_item(self.items["sword"])
-
+        
     def update_fps(self):
         fps = "FPS: " + str(math.ceil(self.clock.get_fps()))
         fps_text = self.FPS_FONT.render(fps, 1, self.WHITE)
@@ -311,8 +311,9 @@ class Game():
             lost = True
         else:
             lost = False
-
-        self.exit_screen(lost)
+        if game_over:
+            self.exit_screen(lost)
+        pygame.quit()
 
     def exit_screen(self, lost, text=None):
         self.screen.fill(self.BLACK)
@@ -330,7 +331,6 @@ class Game():
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
-        pygame.quit()
 
 class Tile(pygame.sprite.Sprite):
     def __init__(self, image, x, y, barrier, pos):
@@ -571,6 +571,9 @@ class Inventory(pygame.sprite.Sprite):
         self.buttons.append(Button(pygame.image.load("graphics/hud/equip_button.png").convert(), 725, 350, self.equip_item))
         self.buttons.append(Button(pygame.image.load("graphics/hud/drop_button.png").convert(), 850, 350, self.drop_item))
 
+        self.ITEM_POS = {"helmet" : [425, 115], "melee" : [347, 186]}
+        self.equiped = {"helmet" : None, "melee" : None}
+
     def add_item(self, item_data):
         if len(self.items) < 364:
             self.items.append(Inventory_Item(item_data))
@@ -594,6 +597,10 @@ class Inventory(pygame.sprite.Sprite):
                 i += 1
             for button in self.buttons:
                 button.draw(screen)
+                equipment = ["helmet", "melee"]
+            for item in equipment:
+                if self.equiped[item]:
+                    self.equiped[item].draw(self.ITEM_POS[item][0], self.ITEM_POS[item][1], screen)
 
     def update(self):
         if not self.show:
@@ -612,7 +619,26 @@ class Inventory(pygame.sprite.Sprite):
                     break
             
     def equip_item(self):
-        print("equiped")
+        if self.selected:
+            item_type = self.selected.item["type"]
+            if self.equiped[item_type]:
+                item = self.equiped[item_type]
+                to_equip = self.selected
+                for i in range(len(self.items)):
+                    if self.items[i] == to_equip:
+                        self.items[i] = item
+                        self.equiped[item_type] = to_equip
+                        break
+            else:
+                item = self.equiped[item_type]
+                to_equip = self.selected
+                for i in range(len(self.items)):
+                    if self.items[i] == to_equip:
+                        self.equiped[item_type] = to_equip
+                        del self.items[i]
+                        break
+            self.selected.image = self.selected.item["image"]
+            self.selected = None
 
 class Inventory_Item(pygame.sprite.Sprite):
     def __init__(self, item_data):
