@@ -3,6 +3,7 @@ import math
 import random
 import generation
 import pathfinding
+import ENTITIES
 
 pygame.init()
 
@@ -63,12 +64,12 @@ class Game():
         for y in range(len(self.world_map)):
             for x in self.world_map[y]:
                 if x == 0:
-                    new = Tile(self.TILES["empty"], x_v, y_v, True, [i, y])
+                    new = ENTITIES.Tile(self.TILES["empty"], x_v, y_v, True, [i, y], SCREENSIZE)
                 elif x == 1:
-                    new = Tile(self.TILES["wall"], x_v, y_v, True, [i, y])
+                    new = ENTITIES.Tile(self.TILES["wall"], x_v, y_v, True, [i, y], SCREENSIZE)
                     self.walls.add(new)
                 elif x == 2:
-                    new = Tile(self.TILES["floor"], x_v, y_v, False, [i, y])
+                    new = ENTITIES.Tile(self.TILES["floor"], x_v, y_v, False, [i, y], SCREENSIZE)
                 x_v += 50
                 self.tiles_list.add(new)
                 self.all_sprites.add(new)
@@ -76,16 +77,16 @@ class Game():
             y_v += 50
             x_v = 0
             i = 0
-        self.player = Player(30, 500)
+        self.player = ENTITIES.Player(30, 500, 1, SCREENSIZE)
         self.spawn_enemies(10)
         
         self.all_sprites.add(self.player)
 
         self.spawn_player()
         colors = {"red": self.RED, "green":self.GREEN}
-        self.hud = Hud(self.screen, colors, self.player)
+        self.hud = ENTITIES.Hud(self.screen, colors, self.player)
         self.all_sprites.add(self.hud)
-        self.inventory = Inventory(self.player)
+        self.inventory = ENTITIES.Inventory(self.player)
         self.all_sprites.add(self.inventory)
         self.inventory.add_item(self.items["sword"])
         
@@ -109,7 +110,7 @@ class Game():
             move_x = random.randint(0, self.MAPSIZE)
             move_y = random.randint(0, self.MAPSIZE)
             move = [-move_x, -move_y]
-            self.all_sprites.update()
+            self.update()
             hit_list = pygame.sprite.spritecollide(self.player, self.tiles_list, False)
             invalid_spawn = False
             for tile in hit_list:
@@ -120,7 +121,7 @@ class Game():
     def spawn_enemies(self, num):
         for i in range(num):
             pos = self.spawn_ent()
-            enemy = Enemy(pos, i)
+            enemy = ENTITIES.Enemy(pos, i, SCREENSIZE)
             self.all_sprites.add(enemy)
             self.enemies.add(enemy)
 
@@ -140,6 +141,10 @@ class Game():
         pos_y = tile[1] * 50
         return [pos_x, pos_y]
 
+    def update(self):
+        for sprite in self.all_sprites.sprites():
+            sprite.update(move)
+
     def main(self):
         global move
         can_move = [True, True, True, True]
@@ -147,7 +152,7 @@ class Game():
         enemies = self.enemies.sprites()
         tile_map = []
         game_over = False
-        mouse_sprite = Sprite_Mouse_Location()
+        mouse_sprite = ENTITIES.Sprite_Mouse_Location()
         for y in range(len(self.world_map)):
             row = []
             for x in range(len(self.world_map[y])):
@@ -234,12 +239,12 @@ class Game():
                     move[1] = -self.MOVE_SPEED*2
                 elif last_move[1] < 0:
                     move[1] = self.MOVE_SPEED*2
-                self.all_sprites.update()
+                self.update()
             if hit_walls:
                 last_move = move
                 move = [0, 0]
             else:
-                self.all_sprites.update()
+                self.update()
                 last_move = move
 
             x_pos = 0
@@ -284,7 +289,7 @@ class Game():
                         in_screen = True
 
                 if enemy.frames_since >= 30 and not enemy.see_player and in_screen:
-                    line = Line(enemy, self.player, self.screen)
+                    line = ENTITIES.Line(enemy, self.player, self.screen)
                     line_list = pygame.sprite.spritecollide(line, self.walls, False)
                     if line_list:
                         enemy.see_player = False
@@ -332,6 +337,7 @@ class Game():
                 if event.type == pygame.QUIT:
                     running = False
 
+"""
 class Tile(pygame.sprite.Sprite):
     def __init__(self, image, x, y, barrier, pos):
         # Call the parent class (Sprite) constructor
@@ -346,8 +352,7 @@ class Tile(pygame.sprite.Sprite):
         self.is_barrier = barrier
         self.pos = pos
 
-    def update(self):
-        global move
+    def update(self, move):
         self.rect.x += move[0]
         self.rect.y += move[1]
 
@@ -357,7 +362,7 @@ class Tile(pygame.sprite.Sprite):
                 screen.blit(self.image, self.rect)
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, health, stamina):
+    def __init__(self, health, stamina, damage):
         super().__init__()
 
         self.image = pygame.image.load("graphics/characters/player.png").convert()
@@ -374,10 +379,14 @@ class Player(pygame.sprite.Sprite):
         self.sprint = False
         self.stamina = stamina
         self.MAX_STAMINA = stamina
+
+        self.NORMAL_DMG = damage
+        self.damage = damage
+        
         self.update_frames = 1
         self.inventory = []
 
-    def update(self):
+    def update(self, move):
         if self.stamina < 1:
             self.sprint = False
         if self.sprint:
@@ -432,8 +441,7 @@ class Enemy(pygame.sprite.Sprite):
         self.cooldown = 120
         self.damage = 3
 
-    def update(self):
-        global move
+    def update(self, move):
         self.move_to_player()
         self.rect.x += move[0]+self.to_move_x
         self.rect.y += move[1]+self.to_move_y
@@ -602,7 +610,7 @@ class Inventory(pygame.sprite.Sprite):
                 if self.equiped[item]:
                     self.equiped[item].draw(self.ITEM_POS[item][0], self.ITEM_POS[item][1], screen)
 
-    def update(self):
+    def update(self, move):
         if not self.show:
             self.selected = None
         for item in self.items:
@@ -640,6 +648,15 @@ class Inventory(pygame.sprite.Sprite):
             self.selected.image = self.selected.item["image"]
             self.selected = None
 
+class Item(pygame.sprite.Sprite):
+    def __init__(self, item_data):
+        self.item = item_data
+        self.image = self.item["image"]
+        self.rect = self.image.get_rect()
+
+        self.rect.x = 0
+        self.rect.y = 0
+
 class Inventory_Item(pygame.sprite.Sprite):
     def __init__(self, item_data):
         self.item = item_data
@@ -670,6 +687,8 @@ class Button(pygame.sprite.Sprite):
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
+"""
+
 
 if __name__ == "__main__":
     game = Game()
