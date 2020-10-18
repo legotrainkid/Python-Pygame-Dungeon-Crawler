@@ -3,6 +3,7 @@ import math
 import random
 import generation
 import pathfinding
+import ENTITIES
 
 pygame.init()
 
@@ -29,6 +30,10 @@ class Game():
         self.screen = pygame.display.set_mode(SCREENSIZE)
 
         self.screen.fill(self.BLACK)
+
+        import ITEMS
+
+        self.items = ITEMS.load()
 
         loading = "LOADING..."
         text = self.SCORE_FONT.render(loading, 1, self.WHITE)
@@ -59,12 +64,12 @@ class Game():
         for y in range(len(self.world_map)):
             for x in self.world_map[y]:
                 if x == 0:
-                    new = Tile(self.TILES["empty"], x_v, y_v, True, [i, y])
+                    new = ENTITIES.Tile(self.TILES["empty"], x_v, y_v, True, [i, y], SCREENSIZE)
                 elif x == 1:
-                    new = Tile(self.TILES["wall"], x_v, y_v, True, [i, y])
+                    new = ENTITIES.Tile(self.TILES["wall"], x_v, y_v, True, [i, y], SCREENSIZE)
                     self.walls.add(new)
                 elif x == 2:
-                    new = Tile(self.TILES["floor"], x_v, y_v, False, [i, y])
+                    new = ENTITIES.Tile(self.TILES["floor"], x_v, y_v, False, [i, y], SCREENSIZE)
                 x_v += 50
                 self.tiles_list.add(new)
                 self.all_sprites.add(new)
@@ -72,16 +77,19 @@ class Game():
             y_v += 50
             x_v = 0
             i = 0
-        self.player = Player(30, 500)
-        self.spawn_enemies(15)
+        self.player = ENTITIES.Player(30, 500, 1, SCREENSIZE)
+        self.spawn_enemies(10)
         
         self.all_sprites.add(self.player)
 
         self.spawn_player()
         colors = {"red": self.RED, "green":self.GREEN}
-        self.hud = Hud(self.screen, colors, self.player)
+        self.hud = ENTITIES.Hud(self.screen, colors, self.player)
         self.all_sprites.add(self.hud)
-
+        self.inventory = ENTITIES.Inventory(self.player)
+        self.all_sprites.add(self.inventory)
+        self.inventory.add_item(self.items["sword"])
+        
     def update_fps(self):
         fps = "FPS: " + str(math.ceil(self.clock.get_fps()))
         fps_text = self.FPS_FONT.render(fps, 1, self.WHITE)
@@ -102,7 +110,7 @@ class Game():
             move_x = random.randint(0, self.MAPSIZE)
             move_y = random.randint(0, self.MAPSIZE)
             move = [-move_x, -move_y]
-            self.all_sprites.update()
+            self.update()
             hit_list = pygame.sprite.spritecollide(self.player, self.tiles_list, False)
             invalid_spawn = False
             for tile in hit_list:
@@ -113,7 +121,7 @@ class Game():
     def spawn_enemies(self, num):
         for i in range(num):
             pos = self.spawn_ent()
-            enemy = Enemy(pos, i)
+            enemy = ENTITIES.Enemy(pos, i, SCREENSIZE)
             self.all_sprites.add(enemy)
             self.enemies.add(enemy)
 
@@ -133,6 +141,10 @@ class Game():
         pos_y = tile[1] * 50
         return [pos_x, pos_y]
 
+    def update(self):
+        for sprite in self.all_sprites.sprites():
+            sprite.update(move)
+
     def main(self):
         global move
         can_move = [True, True, True, True]
@@ -140,6 +152,7 @@ class Game():
         enemies = self.enemies.sprites()
         tile_map = []
         game_over = False
+        mouse_sprite = ENTITIES.Sprite_Mouse_Location()
         for y in range(len(self.world_map)):
             row = []
             for x in range(len(self.world_map[y])):
@@ -171,6 +184,11 @@ class Game():
                     elif event.key == pygame.K_SPACE:
                         self.player.sprint = True
                         self.update_frames = 1
+                    elif event.key == pygame.K_e:
+                        if self.inventory.show:
+                            self.inventory.show = False
+                        else:
+                            self.inventory.show = True
                 elif event.type == pygame.KEYUP:
                     if event.key == pygame.K_w:
                         move = [0, 0]
@@ -183,6 +201,16 @@ class Game():
                     elif event.key == pygame.K_SPACE:
                         self.player.sprint = False
                         self.update_frames = 5
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if self.inventory.show:
+                        if event.button == 1:
+                            mouse_sprite.rect.x , mouse_sprite.rect.y = pygame.mouse.get_pos() # have to have this to update mouse here or get wrong location 
+                            for s in self.inventory.items: #can't have outside the event or it will continuously check
+                                if pygame.sprite.collide_rect(mouse_sprite, s):
+                                    self.inventory.selected = s
+                            for s in self.inventory.buttons:
+                                if pygame.sprite.collide_rect(mouse_sprite, s):
+                                    s.function()
 
             if self.player.sprint:
                 self.MOVE_SPEED = 4
@@ -211,12 +239,12 @@ class Game():
                     move[1] = -self.MOVE_SPEED*2
                 elif last_move[1] < 0:
                     move[1] = self.MOVE_SPEED*2
-                self.all_sprites.update()
+                self.update()
             if hit_walls:
                 last_move = move
                 move = [0, 0]
             else:
-                self.all_sprites.update()
+                self.update()
                 last_move = move
 
             x_pos = 0
@@ -261,7 +289,7 @@ class Game():
                         in_screen = True
 
                 if enemy.frames_since >= 30 and not enemy.see_player and in_screen:
-                    line = Line(enemy, self.player, self.screen)
+                    line = ENTITIES.Line(enemy, self.player, self.screen)
                     line_list = pygame.sprite.spritecollide(line, self.walls, False)
                     if line_list:
                         enemy.see_player = False
@@ -284,19 +312,32 @@ class Game():
             pygame.display.flip()
             self.clock.tick(self.FPS)
 
+        if self.player.health == 0:
+            lost = True
+        else:
+            lost = False
         if game_over:
-            self.screen.fill(self.BLACK)
-            loading = "GAME OVER"
-            text = self.SCORE_FONT.render(loading, 1, self.RED)
-            self.screen.blit(text, (600,500))
-            pygame.display.flip()
-            running = True
-            while running:
-                for event in pygame.event.get():
-                    if event.type == pygame.QUIT:
-                        running = False
+            self.exit_screen(lost)
         pygame.quit()
 
+    def exit_screen(self, lost, text=None):
+        self.screen.fill(self.BLACK)
+        if not text:
+            if lost:
+                text = "Game Over: You Lost"
+            else:
+                "Game Over: You Win"
+        
+        to_display = self.SCORE_FONT.render(text, 1, self.RED)
+        self.screen.blit(to_display, (600,500))
+        pygame.display.flip()
+        running = True
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+
+"""
 class Tile(pygame.sprite.Sprite):
     def __init__(self, image, x, y, barrier, pos):
         # Call the parent class (Sprite) constructor
@@ -311,8 +352,7 @@ class Tile(pygame.sprite.Sprite):
         self.is_barrier = barrier
         self.pos = pos
 
-    def update(self):
-        global move
+    def update(self, move):
         self.rect.x += move[0]
         self.rect.y += move[1]
 
@@ -322,7 +362,7 @@ class Tile(pygame.sprite.Sprite):
                 screen.blit(self.image, self.rect)
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, health, stamina):
+    def __init__(self, health, stamina, damage):
         super().__init__()
 
         self.image = pygame.image.load("graphics/characters/player.png").convert()
@@ -339,9 +379,14 @@ class Player(pygame.sprite.Sprite):
         self.sprint = False
         self.stamina = stamina
         self.MAX_STAMINA = stamina
-        self.update_frames = 1
 
-    def update(self):
+        self.NORMAL_DMG = damage
+        self.damage = damage
+        
+        self.update_frames = 1
+        self.inventory = []
+
+    def update(self, move):
         if self.stamina < 1:
             self.sprint = False
         if self.sprint:
@@ -396,8 +441,7 @@ class Enemy(pygame.sprite.Sprite):
         self.cooldown = 120
         self.damage = 3
 
-    def update(self):
-        global move
+    def update(self, move):
         self.move_to_player()
         self.rect.x += move[0]+self.to_move_x
         self.rect.y += move[1]+self.to_move_y
@@ -469,7 +513,7 @@ class Enemy(pygame.sprite.Sprite):
         else:
             self.attack_frames += 1
             return False
-
+        
     @property
     def on_screen(self):
         if -40 < self.rect.x < SCREENSIZE[0] + 40:
@@ -513,6 +557,138 @@ class Hud(pygame.sprite.Sprite):
                                         self.STAMINA_POS[1],
                                         int(self.STAMINA_POS[2]*(self.player.stamina/self.player.MAX_STAMINA)),
                                         self.STAMINA_POS[3]])
+
+class Inventory(pygame.sprite.Sprite):
+    def __init__(self, player):
+        super().__init__()
+
+        self.image = pygame.image.load("graphics/hud/inventory.png").convert()
+        self.rect = self.image.get_rect()
+
+        self.rect.x = 100
+        self.rect.y = 100
+
+        self.show = False
+
+        self.player = player
+        self.items = []
+        self.buttons = []
+
+        self.selected = None
+
+        self.buttons.append(Button(pygame.image.load("graphics/hud/equip_button.png").convert(), 725, 350, self.equip_item))
+        self.buttons.append(Button(pygame.image.load("graphics/hud/drop_button.png").convert(), 850, 350, self.drop_item))
+
+        self.ITEM_POS = {"helmet" : [425, 115], "melee" : [347, 186]}
+        self.equiped = {"helmet" : None, "melee" : None}
+
+    def add_item(self, item_data):
+        if len(self.items) < 364:
+            self.items.append(Inventory_Item(item_data))
+            return True
+        else:
+            return False
+
+    def draw(self, screen):
+        if self.show:
+            screen.blit(self.image, self.rect)
+            x = 117
+            y = 414
+            i = 1
+            for item in self.items:
+                if i == 21:
+                    i = 1
+                    x = 117
+                    y += 49
+                item.draw(x, y, screen)
+                x += 49
+                i += 1
+            for button in self.buttons:
+                button.draw(screen)
+                equipment = ["helmet", "melee"]
+            for item in equipment:
+                if self.equiped[item]:
+                    self.equiped[item].draw(self.ITEM_POS[item][0], self.ITEM_POS[item][1], screen)
+
+    def update(self, move):
+        if not self.show:
+            self.selected = None
+        for item in self.items:
+            if item == self.selected:
+                item.image = item.item["selected"]
+            else:
+                item.image = item.item["image"]
+
+    def drop_item(self):
+        if self.selected:
+            for i in range(len(self.items)):
+                if self.items[i] == self.selected:
+                    del self.items[i]
+                    break
+            
+    def equip_item(self):
+        if self.selected:
+            item_type = self.selected.item["type"]
+            if self.equiped[item_type]:
+                item = self.equiped[item_type]
+                to_equip = self.selected
+                for i in range(len(self.items)):
+                    if self.items[i] == to_equip:
+                        self.items[i] = item
+                        self.equiped[item_type] = to_equip
+                        break
+            else:
+                item = self.equiped[item_type]
+                to_equip = self.selected
+                for i in range(len(self.items)):
+                    if self.items[i] == to_equip:
+                        self.equiped[item_type] = to_equip
+                        del self.items[i]
+                        break
+            self.selected.image = self.selected.item["image"]
+            self.selected = None
+
+class Item(pygame.sprite.Sprite):
+    def __init__(self, item_data):
+        self.item = item_data
+        self.image = self.item["image"]
+        self.rect = self.image.get_rect()
+
+        self.rect.x = 0
+        self.rect.y = 0
+
+class Inventory_Item(pygame.sprite.Sprite):
+    def __init__(self, item_data):
+        self.item = item_data
+        self.image = self.item["image"]
+        self.rect = self.image.get_rect()
+
+        self.rect.x = 0
+        self.rect.y = 0
+
+    def draw(self, x, y, screen):
+        self.rect.x = x
+        self.rect.y = y
+        screen.blit(self.image, self.rect)
+
+class Sprite_Mouse_Location(pygame.sprite.Sprite):
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.rect = pygame.Rect( 0 , 0 , 1 , 1 )
+
+class Button(pygame.sprite.Sprite):
+    def __init__(self, image, x, y, function):
+        self.image = image
+        self.rect = self.image.get_rect()
+
+        self.rect.x = x
+        self.rect.y = y
+        self.function = function
+
+    def draw(self, screen):
+        screen.blit(self.image, self.rect)
+"""
+
 
 if __name__ == "__main__":
     game = Game()
