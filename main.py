@@ -89,6 +89,14 @@ class Game():
         self.inventory = ENTITIES.Inventory(self.player)
         self.all_sprites.add(self.inventory)
         self.inventory.add_item(self.items["sword"])
+
+        import ANIMATIONS
+        
+        player_anim = DATA.load_player_anim()
+        self.player_animator = ANIMATIONS.Animator(self.player, player_anim)
+
+        self.animators = []
+        self.animators.append(self.player_animator)
         
     def update_fps(self):
         fps = "FPS: " + str(math.ceil(self.clock.get_fps()))
@@ -277,6 +285,7 @@ class Game():
                         enemy.pos = [0, 0]
                 if enemy.attack:
                     self.player.health -= enemy.damage
+                    self.player_animator.play_animation("damage")
                     if self.player.health < 1:
                         game_over = True
                         self.player.health = 0
@@ -304,6 +313,9 @@ class Game():
                     if not tile_map[end[0]][end[1]] and not tile_map[start[0]][start[1]]:
                         enemy.path = pathfinding.search(tile_map, 1, start, end)
                     continue
+
+            for animator in self.animators:
+                animator.update()
 
             for sprite in self.all_sprites.sprites():
                 sprite.draw(self.screen)
