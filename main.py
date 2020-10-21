@@ -175,6 +175,8 @@ class Game():
                 enemy.pos = tiles_hit[0].pos
             else:
                 enemy.pos = [0, 0]
+        x = 0
+        y = 0
         while self.game_running:
             
             for event in pygame.event.get():
@@ -219,6 +221,20 @@ class Game():
                             for s in self.inventory.buttons:
                                 if pygame.sprite.collide_rect(mouse_sprite, s):
                                     s.function()
+                    else:
+                        if event.button == 1:
+                            mouse_sprite.rect.x , mouse_sprite.rect.y = pygame.mouse.get_pos()
+                            center_x = SCREENSIZE[0]/2
+                            center_y = SCREENSIZE[1]/2
+                            if mouse_sprite.rect.x > center_x:
+                                x = -1
+                            else:
+                                x = 1
+                            if mouse_sprite.rect.y > center_y:
+                                y = -1
+                            else:
+                                y = 1
+                            
 
             if self.player.sprint:
                 self.MOVE_SPEED = 4
@@ -313,6 +329,23 @@ class Game():
                     if not tile_map[end[0]][end[1]] and not tile_map[start[0]][start[1]]:
                         enemy.path = pathfinding.search(tile_map, 1, start, end)
                     continue
+
+            for enemy in enemies:
+                if x != 0 and self.player.can_attack:
+                    lower_x = SCREENSIZE[0]/2-self.player.attack_range
+                    upper_x = SCREENSIZE[0]/2+self.player.attack_range
+                    print(1)
+                    if lower_x < enemy.rect.x < upper_x:
+                        lower_y = SCREENSIZE[1]/2-self.player.attack_range
+                        upper_y = SCREENSIZE[1]/2+self.player.attack_range
+                        print(2)
+                        if lower_y < enemy.rect.y < upper_y:
+                            print(3)
+                            if enemy.rect.x < 0 and x < 0 and enemy.rect.y < 0 and y < 0:
+                                enemy.health -= self.player.attack()
+                            if enemy.rect.x > 0 and x > 0 and enemy.rect.y > 0 and y > 0:
+                                enemy.health -= self.player.attack()
+            x, y = 0, 0
 
             for animator in self.animators:
                 animator.update()

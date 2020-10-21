@@ -49,6 +49,7 @@ class Player(pygame.sprite.Sprite):
         
         self.update_frames = 1
         self.inventory = []
+        self.attack_range = 100
 
     def update(self, move):
         if self.stamina < 1:
@@ -69,6 +70,14 @@ class Player(pygame.sprite.Sprite):
                 self.update_frames-=1
         if self.update_frames < 0:
             self.update_frames = 0
+
+    def attack(self):
+        print("attacked")
+        return self.damage
+
+    @property
+    def can_attack(self):
+        return True
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
@@ -108,31 +117,35 @@ class Enemy(pygame.sprite.Sprite):
 
         self.SCREENSIZE = SCREENSIZE
 
+        self.health = 10
+        self.MAX_HEALTH = self.health
+
     def update(self, move):
         self.move_to_player()
         self.rect.x += move[0]+self.to_move_x
         self.rect.y += move[1]+self.to_move_y
-        
-        if self.to_move_x != 0 or self.to_move_y != 0:
-            self.moved = True
-        else:
-            self.moved = False
 
-        
-        if move[0] != 0 or move[1] != 0:
-            self.player_moved = True
-        
-        if self.frames_since > 30 and self.player_moved and self.see_player:
-            self.update_path = True
-            self.frames_since = 0
-            self.player_moved = False
-        elif self.frames_since > 30:
-            self.frames_since = 0
-        else:
-            self.update_path = False
-            self.frames_since += 1
-        if self.see_player:
-            self.see_player = False
+        if not self.is_dead:
+            if self.to_move_x != 0 or self.to_move_y != 0:
+                self.moved = True
+            else:
+                self.moved = False
+
+            
+            if move[0] != 0 or move[1] != 0:
+                self.player_moved = True
+            
+            if self.frames_since > 30 and self.player_moved and self.see_player:
+                self.update_path = True
+                self.frames_since = 0
+                self.player_moved = False
+            elif self.frames_since > 30:
+                self.frames_since = 0
+            else:
+                self.update_path = False
+                self.frames_since += 1
+            if self.see_player:
+                self.see_player = False
 
     def move_to_player(self):
         if self.on_screen and self.path:
@@ -143,6 +156,18 @@ class Enemy(pygame.sprite.Sprite):
     def draw(self, screen):
         if self.on_screen:
             screen.blit(self.image, self.rect)
+            
+            pygame.draw.rect(screen, (0, 0, 0),
+                                       [self.rect.x-5,
+                                        self.rect.y-10,
+                                        45,
+                                        5])
+            
+            pygame.draw.rect(screen, (255, 0, 0),
+                                        [self.rect.x-5,
+                                        self.rect.y-10,
+                                        int(45*(self.health/self.MAX_HEALTH)),
+                                        5])
 
     def move(self):
         if self.path:
@@ -166,11 +191,15 @@ class Enemy(pygame.sprite.Sprite):
 
     @property
     def attack(self):
-        if self.SCREENSIZE[0]/2-50 < self.rect.x < self.SCREENSIZE[0]/2+50:
-            if self.SCREENSIZE[1]/2-50 < self.rect.y < self.SCREENSIZE[1]/2+50:
-                if self.attack_frames > self.cooldown:
-                    self.attack_frames = 0
-                    return True
+        if not self.is_dead:
+            if self.SCREENSIZE[0]/2-50 < self.rect.x < self.SCREENSIZE[0]/2+50:
+                if self.SCREENSIZE[1]/2-50 < self.rect.y < self.SCREENSIZE[1]/2+50:
+                    if self.attack_frames > self.cooldown:
+                        self.attack_frames = 0
+                        return True
+                    else:
+                        self.attack_frames += 1
+                        return False
                 else:
                     self.attack_frames += 1
                     return False
@@ -178,7 +207,6 @@ class Enemy(pygame.sprite.Sprite):
                 self.attack_frames += 1
                 return False
         else:
-            self.attack_frames += 1
             return False
         
     @property
@@ -188,6 +216,14 @@ class Enemy(pygame.sprite.Sprite):
                 return True
             else:
                 return False
+        else:
+            return False
+
+    @property
+    def is_dead(self):
+        if self.health < 1:
+            self.health = 0
+            return True
         else:
             return False
 
