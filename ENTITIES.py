@@ -29,7 +29,7 @@ class Player(pygame.sprite.Sprite):
     def __init__(self, health, stamina, damage, SCREENSIZE):
         super().__init__()
 
-        self.image = pygame.image.load("graphics/characters/player.png").convert()
+        self.image = pygame.image.load("graphics/characters/Player/player.png").convert()
 
         self.rect = self.image.get_rect()
 
