@@ -4,6 +4,8 @@ import random
 import generation
 import pathfinding
 import ENTITIES
+import ANIMATIONS
+import DATA
 
 pygame.init()
 
@@ -21,8 +23,11 @@ class Game():
         self.FPS_FONT = pygame.font.Font("freesansbold.ttf", 11)
         self.SCORE_FONT = pygame.font.Font("freesansbold.ttf", 18)
         self.MOVE_SPEED = 2
-        self.MAPSIZE = 80
+        self.MAPSIZE = 40
         self.FPS = 60
+        self.NUM_ENEMIES = 50
+        self.PLAYER_DAMAGE = 5
+        self.ARROW_SPEED = 10
 
         self.score = 0
         self.game_running = True
@@ -31,7 +36,7 @@ class Game():
 
         self.screen.fill(self.BLACK)
 
-        import DATA
+        
 
         self.items = DATA.load_items()
 
@@ -55,6 +60,7 @@ class Game():
         self.all_sprites = pygame.sprite.Group()
         self.walls = pygame.sprite.Group()
         self.enemies = pygame.sprite.Group()
+        self.projectiles = pygame.sprite.Group()
         
         self.spawned_tiles = []
 
@@ -77,8 +83,8 @@ class Game():
             y_v += 50
             x_v = 0
             i = 0
-        self.player = ENTITIES.Player(30, 500, 1, SCREENSIZE)
-        self.spawn_enemies(10)
+        self.player = ENTITIES.Player(30, 500, self.PLAYER_DAMAGE, SCREENSIZE)
+        self.spawn_enemies(self.NUM_ENEMIES)
         
         self.all_sprites.add(self.player)
 
@@ -90,7 +96,7 @@ class Game():
         self.all_sprites.add(self.inventory)
         self.inventory.add_item(self.items["sword"])
 
-        import ANIMATIONS
+        
         
         player_anim = DATA.load_player_anim()
         self.player_animator = ANIMATIONS.Animator(self.player, player_anim)
@@ -152,6 +158,37 @@ class Game():
     def update(self):
         for sprite in self.all_sprites.sprites():
             sprite.update(move)
+
+    def shoot_projectile(self, x, y):
+        start_x = self.player.rect.x + 7.5
+        start_y = self.player.rect.y + 7.5
+
+        # Get from the mouse the destination location for the bullet
+        # IMPORTANT! If you have a scrolling screen, you will also need
+        # to add in self.view_bottom and self.view_left.
+        dest_x = x-10
+        dest_y = y-10
+
+        # Do math to calculate how to get the bullet to the destination.
+        # Calculation the angle in radians between the start points
+        # and end points. This is the angle the bullet will travel.
+        x_diff = dest_x - start_x
+        y_diff = dest_y - start_y
+        angle = math.atan2(y_diff, x_diff)
+
+        # Angle the bullet sprite so it doesn't look like it is flying
+        # sideways.
+        image = pygame.image.load("graphics/items/projectiles/arrow.png")
+        arrow = ENTITIES.Arrow(start_x, start_y, pygame.transform.rotate(image, -math.degrees(angle)), 10)
+        
+        # Taking into account the angle, calculate our change_x
+        # and change_y. Velocity is how fast the bullet travels.
+        arrow.change_x = math.cos(angle) * self.ARROW_SPEED
+        arrow.change_y = math.sin(angle) * self.ARROW_SPEED
+
+        # Add the bullet to the appropriate lists
+        self.all_sprites.add(arrow)
+        self.projectiles.add(arrow)
 
     def main(self):
         global move
@@ -234,6 +271,9 @@ class Game():
                                 y = -1
                             else:
                                 y = 1
+                        elif event.button == 3:
+                            mouse_sprite.rect.x , mouse_sprite.rect.y = pygame.mouse.get_pos()
+                            self.shoot_projectile(mouse_sprite.rect.x , mouse_sprite.rect.y)
                             
 
             if self.player.sprint:
@@ -330,21 +370,46 @@ class Game():
                         enemy.path = pathfinding.search(tile_map, 1, start, end)
                     continue
 
+            for arrow in self.projectiles.sprites():
+                wall_list = pygame.sprite.spritecollide(arrow, self.walls, False)
+                if wall_list:
+                    arrow.kill()
+                    del arrow
+                else:
+                    enemies_list = pygame.sprite.spritecollide(arrow, self.enemies, False)
+                    for enemy in enemies_list:
+                        enemy.health -= arrow.damage
+                    if enemies_list:
+                        arrow.kill()
+                        del arrow
+
+            killed = True
+            left = 0
             for enemy in enemies:
                 if x != 0 and self.player.can_attack:
                     lower_x = SCREENSIZE[0]/2-self.player.attack_range
                     upper_x = SCREENSIZE[0]/2+self.player.attack_range
-                    print(1)
                     if lower_x < enemy.rect.x < upper_x:
                         lower_y = SCREENSIZE[1]/2-self.player.attack_range
                         upper_y = SCREENSIZE[1]/2+self.player.attack_range
-                        print(2)
                         if lower_y < enemy.rect.y < upper_y:
-                            print(3)
-                            if enemy.rect.x < 0 and x < 0 and enemy.rect.y < 0 and y < 0:
+                            if enemy.rect.x > SCREENSIZE[0]/2:
+                                e_x = -1
+                            else:
+                                e_x = 1
+                            if enemy.rect.y > SCREENSIZE[1]/2:
+                                e_y = -1
+                            else:
+                                e_y = 1
+                            if e_x == x and e_y == y:
                                 enemy.health -= self.player.attack()
-                            if enemy.rect.x > 0 and x > 0 and enemy.rect.y > 0 and y > 0:
-                                enemy.health -= self.player.attack()
+                if not enemy.is_dead:
+                    killed = False
+                    left += 1
+                else:
+                    enemy.remove(self.enemies)
+            
+                            
             x, y = 0, 0
 
             for animator in self.animators:
@@ -354,8 +419,15 @@ class Game():
                 sprite.draw(self.screen)
 
             self.update_fps()
+            enemy_num_text = "ENEMIES LEFT: " + str(left)
+            enemy_text = self.FPS_FONT.render(enemy_num_text, 1, self.BLUE)
+            self.screen.blit(enemy_text, (580,0))
             pygame.display.flip()
             self.clock.tick(self.FPS)
+
+            if killed:
+                game_over = True
+                self.game_running = False
 
         if self.player.health == 0:
             lost = True
@@ -371,9 +443,9 @@ class Game():
             if lost:
                 text = "Game Over: You Lost"
             else:
-                "Game Over: You Win"
+                text = "Game Over: You Win"
         
-        to_display = self.SCORE_FONT.render(text, 1, self.RED)
+        to_display = self.SCORE_FONT.render(text, 1, self.WHITE)
         self.screen.blit(to_display, (600,500))
         pygame.display.flip()
         running = True

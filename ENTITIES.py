@@ -1,5 +1,27 @@
 import pygame
 
+class Arrow(pygame.sprite.Sprite):
+    def __init__(self, x, y, image, damage):
+        super().__init__()
+
+        self.image = image.convert_alpha()
+
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+
+        self.change_x = 0
+        self.change_y = 0
+
+        self.damage = damage
+
+    def update(self, move):
+        self.rect.x += move[0] + self.change_x
+        self.rect.y += move[1] + self.change_y
+
+    def draw(self, screen):
+        screen.blit(self.image, self.rect)
+
 class Tile(pygame.sprite.Sprite):
     def __init__(self, image, x, y, barrier, pos, SCREENSIZE):
         # Call the parent class (Sprite) constructor
@@ -72,7 +94,6 @@ class Player(pygame.sprite.Sprite):
             self.update_frames = 0
 
     def attack(self):
-        print("attacked")
         return self.damage
 
     @property
@@ -121,7 +142,11 @@ class Enemy(pygame.sprite.Sprite):
         self.MAX_HEALTH = self.health
 
     def update(self, move):
-        self.move_to_player()
+        if not self.is_dead:
+            self.move_to_player()
+        else:
+            self.to_move_x = 0
+            self.to_move_y = 0
         self.rect.x += move[0]+self.to_move_x
         self.rect.y += move[1]+self.to_move_y
 
@@ -156,18 +181,17 @@ class Enemy(pygame.sprite.Sprite):
     def draw(self, screen):
         if self.on_screen:
             screen.blit(self.image, self.rect)
-            
-            pygame.draw.rect(screen, (0, 0, 0),
-                                       [self.rect.x-5,
-                                        self.rect.y-10,
-                                        45,
-                                        5])
-            
-            pygame.draw.rect(screen, (255, 0, 0),
-                                        [self.rect.x-5,
-                                        self.rect.y-10,
-                                        int(45*(self.health/self.MAX_HEALTH)),
-                                        5])
+            if not self.is_dead:
+                pygame.draw.rect(screen, (0, 0, 0),
+                                           [self.rect.x-5,
+                                            self.rect.y-10,
+                                            45,
+                                            5])
+                pygame.draw.rect(screen, (255, 0, 0),
+                                            [self.rect.x-5,
+                                            self.rect.y-10,
+                                            int(45*(self.health/self.MAX_HEALTH)),
+                                            5])
 
     def move(self):
         if self.path:
@@ -250,16 +274,18 @@ class Hud(pygame.sprite.Sprite):
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
-        pygame.draw.rect(self.screen, self.colors["red"],
-                                       [self.HEALTH_POS[0],
-                                        self.HEALTH_POS[1],
-                                        int(self.HEALTH_POS[2]*(self.player.health/self.player.MAX_HEALTH)),
-                                        self.HEALTH_POS[3]])
-        pygame.draw.rect(self.screen, self.colors["green"],
-                                       [self.STAMINA_POS[0],
-                                        self.STAMINA_POS[1],
-                                        int(self.STAMINA_POS[2]*(self.player.stamina/self.player.MAX_STAMINA)),
-                                        self.STAMINA_POS[3]])
+        if self.player.health > 0:
+            pygame.draw.rect(self.screen, self.colors["red"],
+                                           [self.HEALTH_POS[0],
+                                            self.HEALTH_POS[1],
+                                            int(self.HEALTH_POS[2]*(self.player.health/self.player.MAX_HEALTH)),
+                                            self.HEALTH_POS[3]])
+        if self.player.stamina > 0:
+            pygame.draw.rect(self.screen, self.colors["green"],
+                                           [self.STAMINA_POS[0],
+                                            self.STAMINA_POS[1],
+                                            int(self.STAMINA_POS[2]*(self.player.stamina/self.player.MAX_STAMINA)),
+                                            self.STAMINA_POS[3]])
 
 class Inventory(pygame.sprite.Sprite):
     def __init__(self, player):
