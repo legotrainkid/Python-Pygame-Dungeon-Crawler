@@ -24,7 +24,6 @@ class Arrow(pygame.sprite.Sprite):
 
 class Tile(pygame.sprite.Sprite):
     def __init__(self, image, x, y, barrier, pos, SCREENSIZE):
-        # Call the parent class (Sprite) constructor
         super().__init__()
  
         self.image = image.convert()
