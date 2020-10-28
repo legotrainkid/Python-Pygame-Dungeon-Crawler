@@ -50,7 +50,7 @@ class Player(pygame.sprite.Sprite):
     def __init__(self, health, stamina, damage, SCREENSIZE):
         super().__init__()
 
-        self.image = pygame.image.load("graphics/characters/Player/player.png").convert()
+        self.image = pygame.image.load("resources/graphics/characters/Player/player.png").convert()
 
         self.rect = self.image.get_rect()
 
@@ -105,7 +105,7 @@ class Player(pygame.sprite.Sprite):
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, pos, frame, SCREENSIZE):
         super().__init__()
-        self.image = pygame.image.load("graphics/characters/enemy.png").convert()
+        self.image = pygame.image.load("resources/graphics/characters/enemy.png").convert()
         self.rect = self.image.get_rect()
 
         self.rect.x = pos[0]+5
@@ -258,7 +258,7 @@ class Hud(pygame.sprite.Sprite):
     def __init__(self, screen, colors, player):
         super().__init__()
         self.colors = colors
-        self.image = pygame.image.load("graphics/hud/hud.png")
+        self.image = pygame.image.load("resources/graphics/hud/hud.png")
         self.rect = self.image.get_rect()
 
         self.rect.x = 0
@@ -290,7 +290,7 @@ class Inventory(pygame.sprite.Sprite):
     def __init__(self, player):
         super().__init__()
 
-        self.image = pygame.image.load("graphics/hud/inventory.png").convert()
+        self.image = pygame.image.load("resources/graphics/hud/inventory.png").convert()
         self.rect = self.image.get_rect()
 
         self.rect.x = 100
@@ -304,8 +304,8 @@ class Inventory(pygame.sprite.Sprite):
 
         self.selected = None
 
-        self.buttons.append(Button(pygame.image.load("graphics/hud/equip_button.png").convert(), 725, 350, self.equip_item))
-        self.buttons.append(Button(pygame.image.load("graphics/hud/drop_button.png").convert(), 850, 350, self.drop_item))
+        self.buttons.append(Button(pygame.image.load("resources/graphics/hud/equip_button.png").convert(), 725, 350, self.equip_item))
+        self.buttons.append(Button(pygame.image.load("resources/graphics/hud/drop_button.png").convert(), 850, 350, self.drop_item))
 
         self.ITEM_POS = {"helmet" : [425, 115], "melee" : [347, 186]}
         self.equiped = {"helmet" : None, "melee" : None}

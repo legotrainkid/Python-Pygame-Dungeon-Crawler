@@ -13,7 +13,7 @@ move = [0, 0]
 SCREENSIZE = [1200,1000]
 
 class Game():
-    def __init__(self):
+    def __init__(self, menu, screen):
         self.YELLOW = (255, 255, 0)
         self.BLUE = (10, 10, 220)
         self.WHITE = (255, 255, 255)
@@ -23,27 +23,27 @@ class Game():
         self.FPS_FONT = pygame.font.Font("freesansbold.ttf", 11)
         self.SCORE_FONT = pygame.font.Font("freesansbold.ttf", 18)
         self.MOVE_SPEED = 2
-        self.MAPSIZE = 40
+        self.MAPSIZE = 20
         self.FPS = 60
-        self.NUM_ENEMIES = 50
+        self.NUM_ENEMIES = 10
         self.PLAYER_DAMAGE = 5
         self.ARROW_SPEED = 10
+        
+        self.menu = menu
 
         self.score = 0
         self.game_running = True
 
-        self.screen = pygame.display.set_mode(SCREENSIZE)
+        self.screen = screen
 
         self.screen.fill(self.BLACK)
-
-        
-
-        self.items = DATA.load_items()
 
         loading = "LOADING..."
         text = self.SCORE_FONT.render(loading, 1, self.WHITE)
         self.screen.blit(text, (600,500))
         pygame.display.flip()
+
+        self.items = DATA.load_items()
 
         self.clock = pygame.time.Clock()
 
@@ -54,7 +54,7 @@ class Game():
         self.TILES = {}
         load_tiles = ["empty", "floor", "wall"]
         for tile in load_tiles:
-            self.TILES[tile] = pygame.image.load("graphics/world/"+tile+".png")
+            self.TILES[tile] = pygame.image.load("resources/graphics/world/"+tile+".png")
 
         self.tiles_list = pygame.sprite.Group()
         self.all_sprites = pygame.sprite.Group()
@@ -178,8 +178,8 @@ class Game():
 
         # Angle the bullet sprite so it doesn't look like it is flying
         # sideways.
-        image = pygame.image.load("graphics/items/projectiles/arrow.png")
-        arrow = ENTITIES.Arrow(start_x, start_y, pygame.transform.rotate(image, -math.degrees(angle)), 10)
+        image = pygame.image.load("resources/graphics/items/projectiles/arrow.png")
+        arrow = ENTITIES.Arrow(start_x, start_y, pygame.transform.rotate(image, -math.degrees(angle)), 3)
         
         # Taking into account the angle, calculate our change_x
         # and change_y. Velocity is how fast the bullet travels.
@@ -218,6 +218,7 @@ class Game():
             
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
+                    self.menu.running = False
                     self.game_running = False
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_w and can_move[1]:
@@ -435,26 +436,6 @@ class Game():
             lost = False
         if game_over:
             self.exit_screen(lost)
-        pygame.quit()
 
     def exit_screen(self, lost, text=None):
-        self.screen.fill(self.BLACK)
-        if not text:
-            if lost:
-                text = "Game Over: You Lost"
-            else:
-                text = "Game Over: You Win"
-        
-        to_display = self.SCORE_FONT.render(text, 1, self.WHITE)
-        self.screen.blit(to_display, (600,500))
-        pygame.display.flip()
-        running = True
-        while running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-
-if __name__ == "__main__":
-    game = Game()
-    game.main()
-    
+        self.menu.exit_screen()
