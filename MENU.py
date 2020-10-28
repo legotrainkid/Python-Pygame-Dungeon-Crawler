@@ -12,8 +12,8 @@ class Menu():
         self.BLACK = (0, 0, 0)
         self.GREEN = (0, 255, 0)
         self.RED = (255, 0, 0)
-        self.SMALL_FONT = pygame.font.Font("freesansbold.ttf", 15)
-        self.LARGE_FONT = pygame.font.Font("freesansbold.ttf", 20)
+        self.SMALL_FONT = pygame.font.Font("resources/fonts/freesansbold.ttf", 15)
+        self.LARGE_FONT = pygame.font.Font("resources/fonts/freesansbold.ttf", 20)
         
         self.screen = pygame.display.set_mode(SCREENSIZE)
 

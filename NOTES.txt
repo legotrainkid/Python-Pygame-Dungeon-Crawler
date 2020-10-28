@@ -1,0 +1,3 @@
+TO BUILD .EXE:
+	run command:
+	pyinstaller "Python Dungeon Crawler.spec" --onefile

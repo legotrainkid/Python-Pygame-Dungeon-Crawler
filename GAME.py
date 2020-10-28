@@ -20,12 +20,12 @@ class Game():
         self.BLACK = (0, 0, 0)
         self.GREEN = (0, 255, 0)
         self.RED = (255, 0, 0)
-        self.FPS_FONT = pygame.font.Font("freesansbold.ttf", 11)
-        self.SCORE_FONT = pygame.font.Font("freesansbold.ttf", 18)
+        self.FPS_FONT = pygame.font.Font("resources/fonts/freesansbold.ttf", 11)
+        self.SCORE_FONT = pygame.font.Font("resources/fonts/freesansbold.ttf", 18)
         self.MOVE_SPEED = 2
-        self.MAPSIZE = 20
+        self.MAPSIZE = 80
         self.FPS = 60
-        self.NUM_ENEMIES = 10
+        self.NUM_ENEMIES = 20
         self.PLAYER_DAMAGE = 5
         self.ARROW_SPEED = 10
         
