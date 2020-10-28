@@ -55,6 +55,9 @@ class Menu():
     def exit_screen(self):
         self.main_screen()
 
+    def how_to_play(self):
+        pass
+
     def run_game(self):
         game = GAME.Game(self, self.screen)
         game.main()
