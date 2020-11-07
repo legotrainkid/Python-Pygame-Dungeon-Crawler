@@ -79,5 +79,6 @@ class Sprite_Mouse_Location(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
         self.rect = pygame.Rect( 0 , 0 , 1 , 1 )
 
-if __name__ == "__main__":
+def main():
     menu = Menu()
+    pygame.quit()

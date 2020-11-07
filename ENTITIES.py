@@ -46,6 +46,16 @@ class Tile(pygame.sprite.Sprite):
             if -55 < self.rect.y < self.SCREENSIZE[1]:
                 screen.blit(self.image, self.rect)
 
+    @property
+    def on_screen(self):
+        if -55 < self.rect.x < self.SCREENSIZE[0]:
+            if -55 < self.rect.y < self.SCREENSIZE[1]:
+                return True
+            else:
+                return False
+        else:
+            return False
+
 class Player(pygame.sprite.Sprite):
     def __init__(self, health, stamina, damage, SCREENSIZE):
         super().__init__()
@@ -140,6 +150,10 @@ class Enemy(pygame.sprite.Sprite):
         self.health = 10
         self.MAX_HEALTH = self.health
 
+        self.despawn_frames = 0
+        self.despawn_timer = 900
+        self.despawn = False
+
     def update(self, move):
         if not self.is_dead:
             self.move_to_player()
@@ -170,6 +184,10 @@ class Enemy(pygame.sprite.Sprite):
                 self.frames_since += 1
             if self.see_player:
                 self.see_player = False
+        else:
+            self.despawn_frames += 1
+            if self.despawn_frames > self.despawn_timer:
+                self.despawn = True
 
     def move_to_player(self):
         if self.on_screen and self.path:

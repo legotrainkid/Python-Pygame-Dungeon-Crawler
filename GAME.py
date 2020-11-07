@@ -1,74 +1,155 @@
+#Needed modules
 import pygame
 import math
 import random
+
+#Extra code files
 import generation
 import pathfinding
+
+#All sprite classes
 import ENTITIES
+
+#Animation/animator code
 import ANIMATIONS
+
+#Extra data, like item and animation data
 import DATA
 
+#Initialize pygame
 pygame.init()
 
+#Global Variables
 move = [0, 0]
 SCREENSIZE = [1200,1000]
 
+#Game class
 class Game():
+    """
+    The game class handles the actual game
+    It recieves a Menu object and pygame.display object
+    """
     def __init__(self, menu, screen):
+        #Set up colors
         self.YELLOW = (255, 255, 0)
         self.BLUE = (10, 10, 220)
         self.WHITE = (255, 255, 255)
         self.BLACK = (0, 0, 0)
         self.GREEN = (0, 255, 0)
         self.RED = (255, 0, 0)
+
+        #Load fonts
         self.FPS_FONT = pygame.font.Font("resources/fonts/freesansbold.ttf", 11)
         self.SCORE_FONT = pygame.font.Font("resources/fonts/freesansbold.ttf", 18)
+
+        #Needed constants, will be moved to settings.txt file for easy editing
         self.MOVE_SPEED = 2
         self.MAPSIZE = 80
         self.FPS = 60
-        self.NUM_ENEMIES = 20
-        self.PLAYER_DAMAGE = 5
+        self.NUM_ENEMIES = 10
+        self.PLAYER_DAMAGE = 10
         self.ARROW_SPEED = 10
-        
+        self.ARROW_DAMAGE = 10
+
+        #Menu object
         self.menu = menu
 
+        #Score variable, used for number of enemies left
         self.score = 0
+
+        #whether or not the game keeps running
         self.game_running = True
 
+        #pygame.display object
         self.screen = screen
 
+        #fill screen
         self.screen.fill(self.BLACK)
 
-        loading = "LOADING..."
+        #Loading screen text
+        loading = "LOADING... INITIALIZING...1%"
         text = self.SCORE_FONT.render(loading, 1, self.WHITE)
-        self.screen.blit(text, (600,500))
+        text_x = int(600-text.get_width()/2)
+        text_y = int(500-text.get_height()/2)
+        self.screen.fill(self.BLACK)
+        self.screen.blit(text, (text_x, text_y))
         pygame.display.flip()
 
+        #load item data form DATA file
         self.items = DATA.load_items()
 
+        #Initialize clock
         self.clock = pygame.time.Clock()
 
+        #Loading screen text
+        loading = "LOADING... GENERATING WORLD...10%"
+        text = self.SCORE_FONT.render(loading, 1, self.WHITE)
+        text_x = int(600-text.get_width()/2)
+        text_y = int(500-text.get_height()/2)
+        self.screen.fill(self.BLACK)
+        self.screen.blit(text, (text_x, text_y))
+        pygame.display.flip()
+
+        #Initialize map generator
         dg = generation.Generator(width=self.MAPSIZE, height=self.MAPSIZE)
+
+        #Generate level
         dg.gen_level()
+
+        #Get world map
         self.world_map = dg.return_tiles()
 
+        #Loading screen text
+        loading = "LOADING... LOADING TILES...19%"
+        text = self.SCORE_FONT.render(loading, 1, self.WHITE)
+        text_x = int(600-text.get_width()/2)
+        text_y = int(500-text.get_height()/2)
+        self.screen.fill(self.BLACK)
+        self.screen.blit(text, (text_x, text_y))
+        pygame.display.flip()
+
+        #Load tile images
         self.TILES = {}
         load_tiles = ["empty", "floor", "wall"]
         for tile in load_tiles:
             self.TILES[tile] = pygame.image.load("resources/graphics/world/"+tile+".png")
 
+        #Loading Screen Text
+        loading = "LOADING... INITIALIZING SPRITE GROUPS...28%"
+        text = self.SCORE_FONT.render(loading, 1, self.WHITE)
+        text_x = int(600-text.get_width()/2)
+        text_y = int(500-text.get_height()/2)
+        self.screen.fill(self.BLACK)
+        self.screen.blit(text, (text_x, text_y))
+        pygame.display.flip()
+
+        #Initialize sprite groups
         self.tiles_list = pygame.sprite.Group()
         self.all_sprites = pygame.sprite.Group()
         self.walls = pygame.sprite.Group()
         self.enemies = pygame.sprite.Group()
         self.projectiles = pygame.sprite.Group()
-        
+
+        #List of all tiles that have been used by spawner
         self.spawned_tiles = []
 
+        #Loading screen text
+        loading = "LOADING... CREATING TILES...37%"
+        text = self.SCORE_FONT.render(loading, 1, self.WHITE)
+        text_x = int(600-text.get_width()/2)
+        text_y = int(500-text.get_height()/2)
+        self.screen.fill(self.BLACK)
+        self.screen.blit(text, (text_x, text_y))
+        pygame.display.flip()
+
+        #Variables for tile creation
         y_v = 0
         x_v = 0
         i = 0
+        #Loop trough every tile in map
         for y in range(len(self.world_map)):
             for x in self.world_map[y]:
+                #Create tile sprite
                 if x == 0:
                     new = ENTITIES.Tile(self.TILES["empty"], x_v, y_v, True, [i, y], SCREENSIZE)
                 elif x == 1:
@@ -77,32 +158,70 @@ class Game():
                 elif x == 2:
                     new = ENTITIES.Tile(self.TILES["floor"], x_v, y_v, False, [i, y], SCREENSIZE)
                 x_v += 50
+                #add tile to sprite groups
                 self.tiles_list.add(new)
                 self.all_sprites.add(new)
                 i+=1
             y_v += 50
             x_v = 0
             i = 0
-        self.player = ENTITIES.Player(30, 500, self.PLAYER_DAMAGE, SCREENSIZE)
-        self.spawn_enemies(self.NUM_ENEMIES)
-        
-        self.all_sprites.add(self.player)
 
+        loading = "LOADING... CREATING PLAYER...47%"
+        text = self.SCORE_FONT.render(loading, 1, self.WHITE)
+        text_x = int(600-text.get_width()/2)
+        text_y = int(500-text.get_height()/2)
+        self.screen.fill(self.BLACK)
+        self.screen.blit(text, (text_x, text_y))
+        pygame.display.flip()
+
+        self.player = ENTITIES.Player(30, 500, self.PLAYER_DAMAGE, SCREENSIZE)
+
+        loading = "LOADING... SPAWNING ENEMIES...56%"
+        text = self.SCORE_FONT.render(loading, 1, self.WHITE)
+        text_x = int(600-text.get_width()/2)
+        text_y = int(500-text.get_height()/2)
+        self.screen.fill(self.BLACK)
+        self.screen.blit(text, (text_x, text_y))
+        pygame.display.flip()
+        
+        self.spawn_enemies(self.NUM_ENEMIES)
+        self.all_sprites.add(self.player)
         self.spawn_player()
+
+        loading = "LOADING... INITIALIZING INVENTORY...64%"
+        text = self.SCORE_FONT.render(loading, 1, self.WHITE)
+        text_x = int(600-text.get_width()/2)
+        text_y = int(500-text.get_height()/2)
+        self.screen.fill(self.BLACK)
+        self.screen.blit(text, (text_x, text_y))
+        pygame.display.flip()
+
         colors = {"red": self.RED, "green":self.GREEN}
         self.hud = ENTITIES.Hud(self.screen, colors, self.player)
-        self.all_sprites.add(self.hud)
         self.inventory = ENTITIES.Inventory(self.player)
-        self.all_sprites.add(self.inventory)
         self.inventory.add_item(self.items["sword"])
 
-        
+        loading = "LOADING... INITIALIZING ANIMATIONS...73%"
+        text = self.SCORE_FONT.render(loading, 1, self.WHITE)
+        text_x = int(600-text.get_width()/2)
+        text_y = int(500-text.get_height()/2)
+        self.screen.fill(self.BLACK)
+        self.screen.blit(text, (text_x, text_y))
+        pygame.display.flip()
         
         player_anim = DATA.load_player_anim()
         self.player_animator = ANIMATIONS.Animator(self.player, player_anim)
 
         self.animators = []
         self.animators.append(self.player_animator)
+
+        loading = "LOADING... STARTING GAME...82%"
+        text = self.SCORE_FONT.render(loading, 1, self.WHITE)
+        text_x = int(600-text.get_width()/2)
+        text_y = int(500-text.get_height()/2)
+        self.screen.fill(self.BLACK)
+        self.screen.blit(text, (text_x, text_y))
+        pygame.display.flip()
         
     def update_fps(self):
         fps = "FPS: " + str(math.ceil(self.clock.get_fps()))
@@ -179,7 +298,7 @@ class Game():
         # Angle the bullet sprite so it doesn't look like it is flying
         # sideways.
         image = pygame.image.load("resources/graphics/items/projectiles/arrow.png")
-        arrow = ENTITIES.Arrow(start_x, start_y, pygame.transform.rotate(image, -math.degrees(angle)), 3)
+        arrow = ENTITIES.Arrow(start_x, start_y, pygame.transform.rotate(image, -math.degrees(angle)), self.ARROW_DAMAGE)
         
         # Taking into account the angle, calculate our change_x
         # and change_y. Velocity is how fast the bullet travels.
@@ -294,7 +413,12 @@ class Game():
             
             self.screen.fill(self.BLACK)
 
-            hit_walls = pygame.sprite.spritecollide(self.player, self.walls, False)
+            hit_walls = []
+            for wall in self.walls.sprites():
+                if wall.on_screen:
+                    if pygame.sprite.collide_rect(self.player, wall):
+                        hit_walls.append(wall)
+            #hit_walls = pygame.sprite.spritecollide(self.player, self.walls, False)
             for wall in hit_walls:
                 if last_move[0] > 0:
                     move[0] = -self.MOVE_SPEED*2
@@ -409,6 +533,9 @@ class Game():
                     left += 1
                 else:
                     enemy.remove(self.enemies)
+                    if enemy.despawn:
+                        enemy.kill()
+                        del enemy
             
                             
             x, y = 0, 0
@@ -418,6 +545,11 @@ class Game():
 
             for sprite in self.all_sprites.sprites():
                 sprite.draw(self.screen)
+
+            self.inventory.update(move)
+            self.inventory.draw(self.screen)
+            self.hud.update(move)
+            self.hud.draw(self.screen)
 
             self.update_fps()
             enemy_num_text = "ENEMIES LEFT: " + str(left)
