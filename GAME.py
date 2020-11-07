@@ -47,9 +47,9 @@ class Game():
         self.MAPSIZE = 80
         self.FPS = 60
         self.NUM_ENEMIES = 10
-        self.PLAYER_DAMAGE = 10
+        self.PLAYER_DAMAGE = 6
         self.ARROW_SPEED = 10
-        self.ARROW_DAMAGE = 10
+        self.ARROW_DAMAGE = 4
 
         #Menu object
         self.menu = menu
