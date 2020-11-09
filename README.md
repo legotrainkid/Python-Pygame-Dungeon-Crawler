@@ -1,7 +1,5 @@
 # Python-Pygame-Dungeon-Crawler
-Version:
- 0.0.1
-
-Updates:
-
-  Added the ability to equip items
+NO MORE UPDATES COMING
+I am changing the game engine from Pygame to Arcade
+I have a new repository for the new version
+https://github.com/legotrainkid/Python-Dungeon-Crawler
